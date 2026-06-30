@@ -454,7 +454,14 @@
         <button class="btn btn-warning" id="btn-gerenciar-pedidos" onclick="abrirModalPedidos()" style="display:none">⚙️ Aprovações Pendentes</button>
       </div>
     </div>
-    <input type="text" class="search-bar" placeholder="🔍 Pesquisar produto..." oninput="filtrarStock(this.value)">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+      <input type="text" class="search-bar" style="margin:0;flex:1" placeholder="🔍 Pesquisar produto..." oninput="filtrarStock(this.value)">
+      <select id="filtro-dono-stock" style="padding:10px 12px;border-radius:9px;border:1px solid var(--borda)" onchange="filtrarDonoStock(this.value)">
+        <option value="">Todos os produtos</option>
+        <option value="farmacia">Só Farmácia</option>
+        <option value="raquel">Só Raquel</option>
+      </select>
+    </div>
     <div class="painel"><div class="painel-body" style="padding:0;overflow-x:auto;"><table><thead><tr><th>Produto</th><th>Categoria</th><th>Quantidade</th><th>Mín.</th><th>Preço Compra</th><th>Preço Venda</th><th>Validade</th><th>Estado</th><th>Acções</th></tr></thead><tbody id="tabela-stock"></tbody></table></div></div>
   </section>
 
@@ -524,6 +531,57 @@
         </div>
         <button class="btn btn-primary" onclick="exportarRelatorioMensal()">📄 Exportar Relatório Mensal (PDF)</button>
         <span style="font-size:12px;color:var(--cinza)">Abre numa nova janela — escolhe "Guardar como PDF" na caixa de impressão.</span>
+      </div>
+    </div>
+    <div class="painel">
+      <div class="painel-header"><span class="painel-titulo">📅 Relatório Diário / Semanal de Vendas</span></div>
+      <div class="painel-body" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group" style="margin:0">
+          <label>Tipo</label>
+          <select id="rel-periodo-tipo" style="padding:9px 12px">
+            <option value="diario">Diário</option>
+            <option value="semanal">Semanal</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Data de referência</label>
+          <input type="date" id="rel-periodo-data">
+        </div>
+        <button class="btn btn-primary" onclick="exportarRelatorioVendasPeriodo()">📄 Exportar Relatório (PDF)</button>
+        <span style="font-size:12px;color:var(--cinza)">Diário: vendas desse dia. Semanal: vendas de segunda a domingo, a partir da data escolhida.</span>
+      </div>
+    </div>
+    <div class="painel">
+      <div class="painel-header"><span class="painel-titulo">📦 Relatório — Stock Abaixo do Mínimo</span></div>
+      <div class="painel-body" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-danger" onclick="exportarRelatorioAbaixoMinimo()">📄 Exportar Relatório (PDF)</button>
+        <button class="btn btn-outline" onclick="exportarRelatorioAbaixoMinimoCSV()">⬇️ CSV / Excel</button>
+        <span style="font-size:12px;color:var(--cinza)">Lista apenas os produtos com stock igual ou abaixo do mínimo definido.</span>
+      </div>
+    </div>
+    <div class="painel">
+      <div class="painel-header"><span class="painel-titulo">⏳ Relatório — Produtos a Expirar</span></div>
+      <div class="painel-body" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group" style="margin:0">
+          <label>Horizonte</label>
+          <select id="rel-expirar-horizonte" style="padding:9px 12px">
+            <option value="30">Próximos 30 dias</option>
+            <option value="60">Próximos 60 dias</option>
+            <option value="90" selected>Próximos 90 dias</option>
+            <option value="180">Próximos 180 dias</option>
+          </select>
+        </div>
+        <button class="btn btn-warning" onclick="exportarRelatorioExpirar()">📄 Exportar Relatório (PDF)</button>
+        <button class="btn btn-outline" onclick="exportarRelatorioExpirarCSV()">⬇️ CSV / Excel</button>
+        <span style="font-size:12px;color:var(--cinza)">Inclui produtos já vencidos e produtos a vencer dentro do horizonte escolhido.</span>
+      </div>
+    </div>
+    <div class="painel">
+      <div class="painel-header"><span class="painel-titulo">👩 Relatório — Produtos da Raquel</span></div>
+      <div class="painel-body" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary" style="background:#7C3AED" onclick="exportarRelatorioRaquel()">📄 Exportar Relatório (PDF)</button>
+        <button class="btn btn-outline" onclick="exportarRelatorioRaquelCSV()">⬇️ CSV / Excel</button>
+        <span style="font-size:12px;color:var(--cinza)">Stock, validades e produtos abaixo do mínimo apenas dos produtos marcados como "Raquel" (ex: HCG, Pílula). Marca o proprietário em Stock → Novo/Editar Produto.</span>
       </div>
     </div>
     <div class="painel">
@@ -960,7 +1018,8 @@
     <div class="modal-body">
       <div class="form-grid">
         <div class="form-group" style="grid-column:span 2"><label>Nome do Produto *</label><input type="text" id="p-nome" placeholder="Ex: Amoxicilina 500mg"></div>
-        <div class="form-group"><label>Categoria</label><select id="p-categoria"><option>Antibióticos</option><option>Analgésicos</option><option>Analgésicos/Anti-inflamatórios</option><option>Anti-inflamatórios</option><option>Antiparasitários</option><option>Vitaminas</option><option>Antimaláricos</option><option>Cardiovascular</option><option>Dermatológico</option><option>Gastrointestinal</option><option>Ginecológico</option><option>Pediátrico</option><option>Profiláticos</option><option>Soros/Hidratação</option><option>Material Descartável</option><option>Xaropes</option><option>Outro</option></select></div>
+        <div class="form-group"><label>Categoria</label><select id="p-categoria"><option>Antibióticos</option><option>Analgésicos</option><option>Analgésicos/Anti-inflamatórios</option><option>Anti-inflamatórios</option><option>Antiparasitários</option><option>Vitaminas</option><option>Antimaláricos</option><option>Cardiovascular</option><option>Dermatológico</option><option>Gastrointestinal</option><option>Ginecológico</option><option>HCG</option><option>Pílula</option><option>Pediátrico</option><option>Profiláticos</option><option>Soros/Hidratação</option><option>Material Descartável</option><option>Xaropes</option><option>Outro</option></select></div>
+        <div class="form-group"><label>Proprietário</label><select id="p-dono"><option value="farmacia">Farmácia Alvirosil</option><option value="raquel">Raquel</option></select></div>
         <div class="form-group"><label>Fornecedor</label><input type="text" id="p-fornecedor" placeholder="Nome do fornecedor"></div>
         <div class="form-group"><label>Quantidade em Stock *</label><input type="number" id="p-qty" min="0" placeholder="0"></div>
         <div class="form-group"><label>Stock Mínimo</label><input type="number" id="p-min" min="0" placeholder="10"></div>
@@ -2086,6 +2145,7 @@ let carrinho = [];
 let vendaRecibo = null;
 let logoAlvirosil = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAADtIklEQVR42uxddXhVZ/J+v3Oux92FQAIhOMEpJLiXUpJSBerUhbok3iThCBIrheKFOhRoyS0tpUppoVCgRYqUNiUFBSEK';
 let filtroStock = '';
+let filtroDonoStock = '';
 
 // Verificar sessão ao carregar (feito aqui, depois de "db" já existir)
 (function() {
@@ -2814,14 +2874,17 @@ function renderStock() {
   const tb = document.getElementById('tabela-stock');
   let produtos = db.produtos;
   if (filtroStock) produtos = produtos.filter(p => p.nome.toLowerCase().includes(filtroStock.toLowerCase())||p.categoria.toLowerCase().includes(filtroStock.toLowerCase()));
+  if (filtroDonoStock) produtos = produtos.filter(p => (p.dono||'farmacia') === filtroDonoStock);
   if (produtos.length===0) { tb.innerHTML='<tr><td colspan="9"><div class="vazio"><div class="vazio-icon">📦</div>Nenhum produto encontrado</div></td></tr>'; return; }
   const podeEd = podeEditar();
   tb.innerHTML = produtos.map(p => {
     const est = getEstadoStock(p); const estV = getEstadoValidade(p);
+    const seloRaquel = (p.dono==='raquel') ? '<span style="font-size:10px;background:#F3E8FF;color:#7C3AED;padding:2px 7px;border-radius:20px;font-weight:600;margin-left:6px">👩 Raquel</span>' : '';
     const acoes = podeEd ? `<button class="btn btn-outline btn-sm" onclick="editarProduto('${p.id}')">✏️</button> <button class="btn btn-danger btn-sm" onclick="removerProduto('${p.id}')">🗑️</button>` : '<span style="color:var(--cinza);font-size:12px">—</span>';
-    return `<tr><td><strong>${p.nome}</strong><br><span style="font-size:11px;color:var(--cinza)">${p.lote||''}</span></td><td><span style="font-size:12px;background:var(--azul-pale);color:var(--azul);padding:3px 8px;border-radius:20px;font-weight:500">${p.categoria}</span></td><td style="font-family:var(--mono);font-weight:600">${p.qty}</td><td style="color:var(--cinza)">${p.min}</td><td style="font-family:var(--mono)">Kz ${formatarValor(p.precoC)}</td><td style="font-family:var(--mono);font-weight:600;color:var(--verde)">Kz ${formatarValor(p.precoV)}</td><td style="font-family:var(--mono)">${p.validade||'—'}</td><td>${est} ${estV}</td><td>${acoes}</td></tr>`;
+    return `<tr><td><strong>${p.nome}</strong>${seloRaquel}<br><span style="font-size:11px;color:var(--cinza)">${p.lote||''}</span></td><td><span style="font-size:12px;background:var(--azul-pale);color:var(--azul);padding:3px 8px;border-radius:20px;font-weight:500">${p.categoria}</span></td><td style="font-family:var(--mono);font-weight:600">${p.qty}</td><td style="color:var(--cinza)">${p.min}</td><td style="font-family:var(--mono)">Kz ${formatarValor(p.precoC)}</td><td style="font-family:var(--mono);font-weight:600;color:var(--verde)">Kz ${formatarValor(p.precoV)}</td><td style="font-family:var(--mono)">${p.validade||'—'}</td><td>${est} ${estV}</td><td>${acoes}</td></tr>`;
   }).join('');
 }
+function filtrarDonoStock(val) { filtroDonoStock=val; renderStock(); }
 
 function getEstadoStock(p) { if(p.qty===0)return'<span class="badge badge-critico">Esgotado</span>'; if(p.qty<=p.min)return'<span class="badge badge-aviso">Baixo</span>'; return'<span class="badge badge-ok">OK</span>'; }
 function getEstadoValidade(p) { if(!p.validade)return''; const dias=Math.floor((new Date(p.validade)-new Date())/86400000); if(dias<0)return'<span class="badge badge-critico">Vencido</span>'; if(dias<=30)return'<span class="badge badge-aviso">⚠️ '+dias+'d</span>'; return''; }
@@ -3591,6 +3654,316 @@ function _downloadCSV(filename, linhas) {
   a.click();
 }
 
+// RELATÓRIO: vendas de um dia ou de uma semana (segunda a domingo)
+function exportarRelatorioVendasPeriodo() {
+  const tipo = document.getElementById('rel-periodo-tipo')?.value || 'diario';
+  const dataRef = document.getElementById('rel-periodo-data')?.value;
+  const farmacia = db.config.farmacia || 'Farmácia Alvirosil';
+  const base = dataRef ? new Date(dataRef + 'T00:00:00') : new Date();
+
+  let inicio, fim, tituloPeriodo, eyebrow;
+  if (tipo === 'semanal') {
+    const diaSemana = base.getDay(); // 0 = Domingo
+    const offsetSegunda = diaSemana === 0 ? -6 : 1 - diaSemana;
+    inicio = new Date(base);
+    inicio.setDate(base.getDate() + offsetSegunda);
+    inicio.setHours(0, 0, 0, 0);
+    fim = new Date(inicio);
+    fim.setDate(inicio.getDate() + 7);
+    const fimVisivel = new Date(fim.getTime() - 86400000);
+    tituloPeriodo = `Semana de ${inicio.toLocaleDateString('pt-PT')} a ${fimVisivel.toLocaleDateString('pt-PT')}`;
+    eyebrow = 'Relatório Semanal de Vendas';
+  } else {
+    inicio = new Date(base);
+    inicio.setHours(0, 0, 0, 0);
+    fim = new Date(inicio);
+    fim.setDate(inicio.getDate() + 1);
+    tituloPeriodo = inicio.toLocaleDateString('pt-PT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    eyebrow = 'Relatório Diário de Vendas';
+  }
+
+  const vendasPeriodo = vendasAtivas().filter(v => { const d = new Date(v.data); return d >= inicio && d < fim; });
+  const totalReceita = vendasPeriodo.reduce((s, v) => s + v.total, 0);
+  const numVendas = vendasPeriodo.length;
+  const ticketMedio = numVendas ? totalReceita / numVendas : 0;
+
+  const porPagamento = {};
+  vendasPeriodo.forEach(v => { porPagamento[v.pagamento] = (porPagamento[v.pagamento] || 0) + v.total; });
+
+  const contagem = {};
+  let unidadesVendidas = 0;
+  vendasPeriodo.forEach(v => v.itens.forEach(i => {
+    if (!contagem[i.nome]) contagem[i.nome] = { qty: 0, valor: 0 };
+    contagem[i.nome].qty += i.qty; contagem[i.nome].valor += i.preco * i.qty;
+    unidadesVendidas += i.qty;
+  }));
+  const topProdutos = Object.entries(contagem).sort((a, b) => b[1].qty - a[1].qty).slice(0, 10);
+
+  const linhasVendas = vendasPeriodo.length
+    ? vendasPeriodo.slice().sort((a, b) => new Date(a.data) - new Date(b.data)).map(v => {
+        const opcoesData = tipo === 'semanal'
+          ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }
+          : { hour: '2-digit', minute: '2-digit' };
+        const quando = new Date(v.data).toLocaleString('pt-PT', opcoesData);
+        return `<tr><td>${quando}</td><td>${v.num || v.id || '—'}</td><td>${v.itens.length} item(ns)</td><td>${v.pagamento || '—'}</td><td class="num">Kz ${formatarValor(v.total)}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="5" class="vazio-msg">Sem vendas registadas neste período</td></tr>';
+
+  const linhasTop = topProdutos.length
+    ? topProdutos.map(([n, d], i) => `<tr><td class="num">${i + 1}</td><td>${n}</td><td class="num">${d.qty}</td><td class="num">Kz ${formatarValor(d.valor)}</td></tr>`).join('')
+    : '<tr><td colspan="4" class="vazio-msg">Sem vendas registadas neste período</td></tr>';
+
+  const linhasPagamento = Object.entries(porPagamento).length
+    ? Object.entries(porPagamento).map(([m, v]) => `<tr><td>${m}</td><td class="num">Kz ${formatarValor(v)}</td></tr>`).join('')
+    : '<tr><td colspan="2" class="vazio-msg">Sem vendas registadas neste período</td></tr>';
+
+  const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>${eyebrow} — ${farmacia}</title>
+  <style>${_estiloRelatorioRapido()}</style></head><body>
+    <div class="acoes-impressao"><button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div>
+    <div class="page">
+      ${_cabecalhoRelatorioRapido(eyebrow, tituloPeriodo)}
+      <div class="corpo">
+        <div class="sec">
+          <div class="kpi-grid">
+            <div class="kpi verde"><div class="kpi-label">Receita Total</div><div class="kpi-valor">Kz ${formatarValor(totalReceita)}</div><div class="kpi-sub">no período</div></div>
+            <div class="kpi azul"><div class="kpi-label">Total de Vendas</div><div class="kpi-valor">${numVendas}</div><div class="kpi-sub">transações</div></div>
+            <div class="kpi amarelo"><div class="kpi-label">Ticket Médio</div><div class="kpi-valor">Kz ${formatarValor(ticketMedio)}</div><div class="kpi-sub">por venda</div></div>
+            <div class="kpi azul"><div class="kpi-label">Unidades Vendidas</div><div class="kpi-valor">${unidadesVendidas}</div><div class="kpi-sub">produtos</div></div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-head"><span class="sec-icon">🧾</span><span class="sec-titulo">Vendas do Período</span><span class="sec-linha"></span></div>
+          <table><thead><tr><th>${tipo === 'semanal' ? 'Data/Hora' : 'Hora'}</th><th>Nº Venda</th><th>Itens</th><th>Pagamento</th><th class="num">Total</th></tr></thead><tbody>${linhasVendas}</tbody></table>
+        </div>
+        <div class="sec">
+          <div class="sec-head"><span class="sec-icon">🏆</span><span class="sec-titulo">Produtos Mais Vendidos</span><span class="sec-linha"></span></div>
+          <table><thead><tr><th>#</th><th>Produto</th><th class="num">Qtd.</th><th class="num">Valor</th></tr></thead><tbody>${linhasTop}</tbody></table>
+        </div>
+        <div class="sec">
+          <div class="sec-head"><span class="sec-icon">💳</span><span class="sec-titulo">Por Forma de Pagamento</span><span class="sec-linha"></span></div>
+          <table><thead><tr><th>Método</th><th class="num">Valor</th></tr></thead><tbody>${linhasPagamento}</tbody></table>
+        </div>
+      </div>
+      <div class="rodape"><span><strong>${farmacia}</strong> · Relatório gerado automaticamente</span><span>FarmaGest</span></div>
+    </div>
+  </body></html>`;
+
+  _abrirJanelaRelatorio(html);
+}
+
+// RELATÓRIO: apenas produtos abaixo (ou igual) ao stock mínimo
+function exportarRelatorioAbaixoMinimo() {
+  const farmacia = db.config.farmacia || 'Farmácia Alvirosil';
+  const abaixoMin = db.produtos
+    .filter(p => p.qty <= p.min)
+    .sort((a, b) => (a.qty - a.min) - (b.qty - b.min));
+  const valorRisco = abaixoMin.reduce((s, p) => s + p.qty * p.precoC, 0);
+  const esgotados = abaixoMin.filter(p => p.qty === 0).length;
+
+  const linhas = abaixoMin.length
+    ? abaixoMin.map(p => {
+        const estado = p.qty === 0 ? '<span class="badge badge-critico">Esgotado</span>' : '<span class="badge badge-aviso">Baixo</span>';
+        return `<tr><td>${p.nome}</td><td>${p.categoria || '—'}</td><td>${p.fornecedor || '—'}</td><td class="num">${p.qty}</td><td class="num">${p.min}</td><td class="num">${Math.max(p.min - p.qty, 0)}</td><td>${estado}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="7" class="vazio-msg">Não existem produtos abaixo do mínimo — stock em ordem</td></tr>';
+
+  const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Stock Abaixo do Mínimo — ${farmacia}</title>
+  <style>${_estiloRelatorioRapido()}</style></head><body>
+    <div class="acoes-impressao"><button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div>
+    <div class="page">
+      ${_cabecalhoRelatorioRapido('Relatório de Stock', 'Produtos Abaixo do Mínimo')}
+      <div class="corpo">
+        <div class="sec">
+          <div class="kpi-grid">
+            <div class="kpi amarelo"><div class="kpi-label">Produtos Abaixo do Mínimo</div><div class="kpi-valor">${abaixoMin.length}</div><div class="kpi-sub">${esgotados} esgotado(s)</div></div>
+            <div class="kpi vermelho"><div class="kpi-label">Valor em Risco (custo)</div><div class="kpi-valor">Kz ${formatarValor(valorRisco)}</div><div class="kpi-sub">stock por repor</div></div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-head"><span class="sec-icon">📦</span><span class="sec-titulo">Produtos Abaixo do Stock Mínimo</span><span class="sec-linha"></span></div>
+          <table><thead><tr><th>Produto</th><th>Categoria</th><th>Fornecedor</th><th class="num">Stock Atual</th><th class="num">Mínimo</th><th class="num">Falta</th><th>Estado</th></tr></thead><tbody>${linhas}</tbody></table>
+        </div>
+      </div>
+      <div class="rodape"><span><strong>${farmacia}</strong> · Relatório gerado automaticamente</span><span>FarmaGest</span></div>
+    </div>
+  </body></html>`;
+
+  _abrirJanelaRelatorio(html);
+}
+
+function exportarRelatorioAbaixoMinimoCSV() {
+  const abaixoMin = db.produtos.filter(p => p.qty <= p.min).sort((a, b) => (a.qty - a.min) - (b.qty - b.min));
+  const linhas = [['Produto', 'Categoria', 'Fornecedor', 'Stock Atual', 'Mínimo', 'Falta', 'Estado']];
+  abaixoMin.forEach(p => {
+    linhas.push([p.nome, p.categoria || '', p.fornecedor || '', p.qty, p.min, Math.max(p.min - p.qty, 0), p.qty === 0 ? 'Esgotado' : 'Baixo']);
+  });
+  _downloadCSV('stock-abaixo-minimo.csv', linhas);
+}
+
+// RELATÓRIO: apenas produtos vencidos + a vencer dentro do horizonte escolhido
+function exportarRelatorioExpirar() {
+  const hoje = new Date();
+  const farmacia = db.config.farmacia || 'Farmácia Alvirosil';
+  const horizonte = parseInt(document.getElementById('rel-expirar-horizonte')?.value || '90', 10);
+
+  const vencidos = db.produtos
+    .filter(p => p.validade && new Date(p.validade) < hoje)
+    .sort((a, b) => new Date(a.validade) - new Date(b.validade));
+  const aVencer = db.produtos
+    .filter(p => { if (!p.validade) return false; const dias = Math.floor((new Date(p.validade) - hoje) / 86400000); return dias >= 0 && dias <= horizonte; })
+    .sort((a, b) => new Date(a.validade) - new Date(b.validade));
+
+  const valorVencido = vencidos.reduce((s, p) => s + p.qty * p.precoC, 0);
+  const valorAVencer = aVencer.reduce((s, p) => s + p.qty * p.precoC, 0);
+
+  const linhasVencidos = vencidos.length
+    ? vencidos.map(p => {
+        const dias = Math.floor((hoje - new Date(p.validade)) / 86400000);
+        return `<tr><td>${p.nome}</td><td>${p.categoria || '—'}</td><td>${p.lote || '—'}</td><td>${p.validade}</td><td class="num">há ${dias} dia(s)</td><td class="num">${p.qty}</td><td class="num">Kz ${formatarValor(p.qty * p.precoC)}</td></tr>`;
+      }).join('')
+    : '<tr><td colspan="7" class="vazio-msg">Não existem produtos vencidos</td></tr>';
+
+  const linhasAVencer = aVencer.length
+    ? aVencer.map(p => {
+        const dias = Math.floor((new Date(p.validade) - hoje) / 86400000);
+        const badge = dias <= 30 ? '<span class="badge badge-critico">Urgente</span>' : '<span class="badge badge-aviso">A vencer</span>';
+        return `<tr><td>${p.nome}</td><td>${p.categoria || '—'}</td><td>${p.lote || '—'}</td><td>${p.validade}</td><td class="num">${dias} dia(s)</td><td class="num">${p.qty}</td><td>${badge}</td></tr>`;
+      }).join('')
+    : `<tr><td colspan="7" class="vazio-msg">Sem produtos a vencer nos próximos ${horizonte} dias</td></tr>`;
+
+  const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Produtos a Expirar — ${farmacia}</title>
+  <style>${_estiloRelatorioRapido()}</style></head><body>
+    <div class="acoes-impressao"><button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div>
+    <div class="page">
+      ${_cabecalhoRelatorioRapido('Relatório de Validades', `Vencidos &amp; A Vencer (${horizonte} dias)`)}
+      <div class="corpo">
+        <div class="sec">
+          <div class="kpi-grid">
+            <div class="kpi vermelho"><div class="kpi-label">Produtos Vencidos</div><div class="kpi-valor">${vencidos.length}</div><div class="kpi-sub">Kz ${formatarValor(valorVencido)} ao custo</div></div>
+            <div class="kpi amarelo"><div class="kpi-label">A Vencer (${horizonte}d)</div><div class="kpi-valor">${aVencer.length}</div><div class="kpi-sub">Kz ${formatarValor(valorAVencer)} ao custo</div></div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-head"><span class="sec-icon">⏳</span><span class="sec-titulo">Produtos Vencidos</span><span class="sec-linha"></span></div>
+          <table><thead><tr><th>Produto</th><th>Categoria</th><th>Lote</th><th>Validade</th><th class="num">Vencido há</th><th class="num">Qtd.</th><th class="num">Valor (custo)</th></tr></thead><tbody>${linhasVencidos}</tbody></table>
+        </div>
+        <div class="sec">
+          <div class="sec-head"><span class="sec-icon">📅</span><span class="sec-titulo">A Vencer nos Próximos ${horizonte} Dias</span><span class="sec-linha"></span></div>
+          <table><thead><tr><th>Produto</th><th>Categoria</th><th>Lote</th><th>Validade</th><th class="num">Dias Restantes</th><th class="num">Qtd.</th><th>Estado</th></tr></thead><tbody>${linhasAVencer}</tbody></table>
+        </div>
+      </div>
+      <div class="rodape"><span><strong>${farmacia}</strong> · Relatório gerado automaticamente</span><span>FarmaGest</span></div>
+    </div>
+  </body></html>`;
+
+  _abrirJanelaRelatorio(html);
+}
+
+function exportarRelatorioExpirarCSV() {
+  const hoje = new Date();
+  const horizonte = parseInt(document.getElementById('rel-expirar-horizonte')?.value || '90', 10);
+  const vencidos = db.produtos.filter(p => p.validade && new Date(p.validade) < hoje).sort((a, b) => new Date(a.validade) - new Date(b.validade));
+  const aVencer = db.produtos.filter(p => { if (!p.validade) return false; const dias = Math.floor((new Date(p.validade) - hoje) / 86400000); return dias >= 0 && dias <= horizonte; }).sort((a, b) => new Date(a.validade) - new Date(b.validade));
+
+  const linhas = [['Produto', 'Categoria', 'Lote', 'Validade', 'Estado', 'Dias', 'Quantidade']];
+  vencidos.forEach(p => {
+    const dias = Math.floor((hoje - new Date(p.validade)) / 86400000);
+    linhas.push([p.nome, p.categoria || '', p.lote || '', p.validade, 'Vencido', dias, p.qty]);
+  });
+  aVencer.forEach(p => {
+    const dias = Math.floor((new Date(p.validade) - hoje) / 86400000);
+    linhas.push([p.nome, p.categoria || '', p.lote || '', p.validade, 'A vencer', dias, p.qty]);
+  });
+  _downloadCSV('produtos-a-expirar.csv', linhas);
+}
+
+// RELATÓRIO: produtos marcados como "Raquel" (ex: HCG, Pílula) — stock, validades e mínimo
+function exportarRelatorioRaquel() {
+  const hoje = new Date();
+  const farmacia = db.config.farmacia || 'Farmácia Alvirosil';
+  const produtosRaquel = db.produtos.filter(p => (p.dono || 'farmacia') === 'raquel');
+
+  if (!produtosRaquel.length) {
+    alert('Ainda não existem produtos marcados como "Raquel". Marca o proprietário ao criar/editar o produto em Stock.');
+    return;
+  }
+
+  const valorStock = produtosRaquel.reduce((s, p) => s + p.qty * p.precoV, 0);
+  const valorCusto = produtosRaquel.reduce((s, p) => s + p.qty * p.precoC, 0);
+  const abaixoMin = produtosRaquel.filter(p => p.qty <= p.min);
+  const vencidos = produtosRaquel.filter(p => p.validade && new Date(p.validade) < hoje);
+  const aVencer = produtosRaquel.filter(p => { if (!p.validade) return false; const dias = Math.floor((new Date(p.validade) - hoje) / 86400000); return dias >= 0 && dias <= 90; });
+
+  const linhasStock = produtosRaquel
+    .slice().sort((a, b) => a.nome.localeCompare(b.nome))
+    .map(p => {
+      const est = p.qty === 0 ? '<span class="badge badge-critico">Esgotado</span>' : (p.qty <= p.min ? '<span class="badge badge-aviso">Baixo</span>' : '<span class="badge badge-ok">OK</span>');
+      return `<tr><td>${p.nome}</td><td>${p.categoria || '—'}</td><td class="num">${p.qty}</td><td class="num">${p.min}</td><td class="num">Kz ${formatarValor(p.precoV)}</td><td>${p.validade || '—'}</td><td>${est}</td></tr>`;
+    }).join('');
+
+  const linhasMin = abaixoMin.length
+    ? abaixoMin.map(p => `<tr><td>${p.nome}</td><td>${p.categoria || '—'}</td><td class="num">${p.qty}</td><td class="num">${p.min}</td><td class="num">${Math.max(p.min - p.qty, 0)}</td></tr>`).join('')
+    : '<tr><td colspan="5" class="vazio-msg">Sem produtos abaixo do mínimo</td></tr>';
+
+  const linhasValidade = (vencidos.length || aVencer.length)
+    ? [...vencidos.map(p => ({ ...p, _st: 'vencido' })), ...aVencer.map(p => ({ ...p, _st: 'avencer' }))]
+        .sort((a, b) => new Date(a.validade) - new Date(b.validade))
+        .map(p => {
+          const dias = Math.floor((new Date(p.validade) - hoje) / 86400000);
+          const badge = p._st === 'vencido' ? '<span class="badge badge-critico">Vencido</span>' : (dias <= 30 ? '<span class="badge badge-critico">Urgente</span>' : '<span class="badge badge-aviso">A vencer</span>');
+          const diasTxt = p._st === 'vencido' ? `há ${Math.abs(dias)} dia(s)` : `${dias} dia(s)`;
+          return `<tr><td>${p.nome}</td><td>${p.validade}</td><td class="num">${diasTxt}</td><td class="num">${p.qty}</td><td>${badge}</td></tr>`;
+        }).join('')
+    : '<tr><td colspan="5" class="vazio-msg">Sem produtos vencidos ou a vencer nos próximos 90 dias</td></tr>';
+
+  const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Produtos da Raquel — ${farmacia}</title>
+  <style>${_estiloRelatorioRapido()}</style></head><body>
+    <div class="acoes-impressao"><button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div>
+    <div class="page">
+      ${_cabecalhoRelatorioRapido('Relatório Pessoal', 'Produtos da Raquel')}
+      <div class="corpo">
+        <div class="sec">
+          <div class="kpi-grid">
+            <div class="kpi" style="border-left-color:#7C3AED"><div class="kpi-label">Produtos</div><div class="kpi-valor">${produtosRaquel.length}</div><div class="kpi-sub">no total</div></div>
+            <div class="kpi verde"><div class="kpi-label">Valor de Stock (venda)</div><div class="kpi-valor">Kz ${formatarValor(valorStock)}</div><div class="kpi-sub">Kz ${formatarValor(valorCusto)} ao custo</div></div>
+            <div class="kpi amarelo"><div class="kpi-label">Abaixo do Mínimo</div><div class="kpi-valor">${abaixoMin.length}</div><div class="kpi-sub">a repor</div></div>
+            <div class="kpi vermelho"><div class="kpi-label">Vencidos / A Vencer (90d)</div><div class="kpi-valor">${vencidos.length + aVencer.length}</div><div class="kpi-sub">${vencidos.length} já vencido(s)</div></div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-head"><span class="sec-icon">👩</span><span class="sec-titulo">Stock Completo — Produtos da Raquel</span><span class="sec-linha"></span></div>
+          <table><thead><tr><th>Produto</th><th>Categoria</th><th class="num">Stock</th><th class="num">Mínimo</th><th class="num">Preço Venda</th><th>Validade</th><th>Estado</th></tr></thead><tbody>${linhasStock}</tbody></table>
+        </div>
+        <div class="sec">
+          <div class="sec-head"><span class="sec-icon">📦</span><span class="sec-titulo">Abaixo do Stock Mínimo</span><span class="sec-linha"></span></div>
+          <table><thead><tr><th>Produto</th><th>Categoria</th><th class="num">Stock Atual</th><th class="num">Mínimo</th><th class="num">Falta</th></tr></thead><tbody>${linhasMin}</tbody></table>
+        </div>
+        <div class="sec">
+          <div class="sec-head"><span class="sec-icon">⏳</span><span class="sec-titulo">Validades — Vencidos &amp; A Vencer (90 dias)</span><span class="sec-linha"></span></div>
+          <table><thead><tr><th>Produto</th><th>Validade</th><th class="num">Dias</th><th class="num">Qtd.</th><th>Estado</th></tr></thead><tbody>${linhasValidade}</tbody></table>
+        </div>
+      </div>
+      <div class="rodape"><span><strong>${farmacia}</strong> · Relatório gerado automaticamente</span><span>FarmaGest</span></div>
+    </div>
+  </body></html>`;
+
+  _abrirJanelaRelatorio(html);
+}
+
+function exportarRelatorioRaquelCSV() {
+  const produtosRaquel = db.produtos.filter(p => (p.dono || 'farmacia') === 'raquel');
+  if (!produtosRaquel.length) {
+    alert('Ainda não existem produtos marcados como "Raquel".');
+    return;
+  }
+  const linhas = [['Produto', 'Categoria', 'Stock', 'Mínimo', 'Preço Compra', 'Preço Venda', 'Validade', 'Estado']];
+  produtosRaquel.forEach(p => {
+    const estado = p.qty === 0 ? 'Esgotado' : (p.qty <= p.min ? 'Baixo' : 'OK');
+    linhas.push([p.nome, p.categoria || '', p.qty, p.min, p.precoC, p.precoV, p.validade || '', estado]);
+  });
+  _downloadCSV('produtos-raquel.csv', linhas);
+}
+
 // RELATÓRIO: produtos vencidos + a vencer (horizonte configurável) + produtos abaixo do stock mínimo
 function exportarRelatorioVencidosMinimo() {
   const hoje = new Date();
@@ -3830,6 +4203,7 @@ function abrirModalProduto() {
   editandoId=null;
   document.getElementById('modal-produto-titulo').textContent='Novo Produto';
   ['p-nome','p-fornecedor','p-qty','p-min','p-preco-c','p-preco-v','p-validade','p-lote'].forEach(id=>{document.getElementById(id).value='';});
+  document.getElementById('p-dono').value='farmacia';
   document.getElementById('modal-produto').classList.add('open');
 }
 function editarProduto(id) {
@@ -3839,6 +4213,7 @@ function editarProduto(id) {
   document.getElementById('modal-produto-titulo').textContent='Editar Produto';
   document.getElementById('p-nome').value=p.nome;
   document.getElementById('p-categoria').value=p.categoria;
+  document.getElementById('p-dono').value=p.dono||'farmacia';
   document.getElementById('p-fornecedor').value=p.fornecedor||'';
   document.getElementById('p-qty').value=p.qty;
   document.getElementById('p-min').value=p.min;
@@ -3855,7 +4230,7 @@ function salvarProduto() {
   if(!nome){alert('O nome do produto é obrigatório!');return;}
   if(isNaN(qty)){alert('Quantidade inválida!');return;}
   if(isNaN(precoV)){alert('Preço de venda inválido!');return;}
-  const data={nome,categoria:document.getElementById('p-categoria').value,fornecedor:document.getElementById('p-fornecedor').value,qty,min:parseInt(document.getElementById('p-min').value)||0,precoC:parseFloat(document.getElementById('p-preco-c').value)||0,precoV,validade:document.getElementById('p-validade').value||null,lote:document.getElementById('p-lote').value||''};
+  const data={nome,categoria:document.getElementById('p-categoria').value,dono:document.getElementById('p-dono').value||'farmacia',fornecedor:document.getElementById('p-fornecedor').value,qty,min:parseInt(document.getElementById('p-min').value)||0,precoC:parseFloat(document.getElementById('p-preco-c').value)||0,precoV,validade:document.getElementById('p-validade').value||null,lote:document.getElementById('p-lote').value||''};
 
   if (utilizadorAtual !== 'gerente') {
     // Qualquer alteração de quem não é gerente fica pendente de aprovação

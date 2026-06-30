@@ -459,7 +459,7 @@
       <select id="filtro-dono-stock" style="padding:10px 12px;border-radius:9px;border:1px solid var(--borda)" onchange="filtrarDonoStock(this.value)">
         <option value="">Todos os produtos</option>
         <option value="farmacia">Só Farmácia</option>
-        <option value="raquel">Só Raquel</option>
+        <option value="gestao">Só Gestão</option>
       </select>
     </div>
     <div class="painel"><div class="painel-body" style="padding:0;overflow-x:auto;"><table><thead><tr><th>Produto</th><th>Categoria</th><th>Quantidade</th><th>Mín.</th><th>Preço Compra</th><th>Preço Venda</th><th>Validade</th><th>Estado</th><th>Acções</th></tr></thead><tbody id="tabela-stock"></tbody></table></div></div>
@@ -577,11 +577,11 @@
       </div>
     </div>
     <div class="painel">
-      <div class="painel-header"><span class="painel-titulo">👩 Relatório — Produtos da Raquel</span></div>
+      <div class="painel-header"><span class="painel-titulo">👩 Relatório — Produtos da Gestão</span></div>
       <div class="painel-body" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-primary" style="background:#7C3AED" onclick="exportarRelatorioRaquel()">📄 Exportar Relatório (PDF)</button>
-        <button class="btn btn-outline" onclick="exportarRelatorioRaquelCSV()">⬇️ CSV / Excel</button>
-        <span style="font-size:12px;color:var(--cinza)">Stock, validades e produtos abaixo do mínimo apenas dos produtos marcados como "Raquel" (ex: HCG, Pílula). Marca o proprietário em Stock → Novo/Editar Produto.</span>
+        <button class="btn btn-primary" style="background:#7C3AED" onclick="exportarRelatorioGestao()">📄 Exportar Relatório (PDF)</button>
+        <button class="btn btn-outline" onclick="exportarRelatorioGestaoCSV()">⬇️ CSV / Excel</button>
+        <span style="font-size:12px;color:var(--cinza)">Stock, validades e produtos abaixo do mínimo apenas dos produtos marcados como "Gestão" (ex: HCG, Pílula). Marca o proprietário em Stock → Novo/Editar Produto.</span>
       </div>
     </div>
     <div class="painel">
@@ -1019,7 +1019,7 @@
       <div class="form-grid">
         <div class="form-group" style="grid-column:span 2"><label>Nome do Produto *</label><input type="text" id="p-nome" placeholder="Ex: Amoxicilina 500mg"></div>
         <div class="form-group"><label>Categoria</label><select id="p-categoria"><option>Antibióticos</option><option>Analgésicos</option><option>Analgésicos/Anti-inflamatórios</option><option>Anti-inflamatórios</option><option>Antiparasitários</option><option>Vitaminas</option><option>Antimaláricos</option><option>Cardiovascular</option><option>Dermatológico</option><option>Gastrointestinal</option><option>Ginecológico</option><option>HCG</option><option>Pílula</option><option>Pediátrico</option><option>Profiláticos</option><option>Soros/Hidratação</option><option>Material Descartável</option><option>Xaropes</option><option>Outro</option></select></div>
-        <div class="form-group"><label>Proprietário</label><select id="p-dono"><option value="farmacia">Farmácia Alvirosil</option><option value="raquel">Raquel</option></select></div>
+        <div class="form-group"><label>Proprietário</label><select id="p-dono"><option value="farmacia">Farmácia Alvirosil</option><option value="gestao">Gestão</option></select></div>
         <div class="form-group"><label>Fornecedor</label><input type="text" id="p-fornecedor" placeholder="Nome do fornecedor"></div>
         <div class="form-group"><label>Quantidade em Stock *</label><input type="number" id="p-qty" min="0" placeholder="0"></div>
         <div class="form-group"><label>Stock Mínimo</label><input type="number" id="p-min" min="0" placeholder="10"></div>
@@ -2879,9 +2879,9 @@ function renderStock() {
   const podeEd = podeEditar();
   tb.innerHTML = produtos.map(p => {
     const est = getEstadoStock(p); const estV = getEstadoValidade(p);
-    const seloRaquel = (p.dono==='raquel') ? '<span style="font-size:10px;background:#F3E8FF;color:#7C3AED;padding:2px 7px;border-radius:20px;font-weight:600;margin-left:6px">👩 Raquel</span>' : '';
+    const seloGestao = (p.dono==='gestao') ? '<span style="font-size:10px;background:#F3E8FF;color:#7C3AED;padding:2px 7px;border-radius:20px;font-weight:600;margin-left:6px">👩 Gestão</span>' : '';
     const acoes = podeEd ? `<button class="btn btn-outline btn-sm" onclick="editarProduto('${p.id}')">✏️</button> <button class="btn btn-danger btn-sm" onclick="removerProduto('${p.id}')">🗑️</button>` : '<span style="color:var(--cinza);font-size:12px">—</span>';
-    return `<tr><td><strong>${p.nome}</strong>${seloRaquel}<br><span style="font-size:11px;color:var(--cinza)">${p.lote||''}</span></td><td><span style="font-size:12px;background:var(--azul-pale);color:var(--azul);padding:3px 8px;border-radius:20px;font-weight:500">${p.categoria}</span></td><td style="font-family:var(--mono);font-weight:600">${p.qty}</td><td style="color:var(--cinza)">${p.min}</td><td style="font-family:var(--mono)">Kz ${formatarValor(p.precoC)}</td><td style="font-family:var(--mono);font-weight:600;color:var(--verde)">Kz ${formatarValor(p.precoV)}</td><td style="font-family:var(--mono)">${p.validade||'—'}</td><td>${est} ${estV}</td><td>${acoes}</td></tr>`;
+    return `<tr><td><strong>${p.nome}</strong>${seloGestao}<br><span style="font-size:11px;color:var(--cinza)">${p.lote||''}</span></td><td><span style="font-size:12px;background:var(--azul-pale);color:var(--azul);padding:3px 8px;border-radius:20px;font-weight:500">${p.categoria}</span></td><td style="font-family:var(--mono);font-weight:600">${p.qty}</td><td style="color:var(--cinza)">${p.min}</td><td style="font-family:var(--mono)">Kz ${formatarValor(p.precoC)}</td><td style="font-family:var(--mono);font-weight:600;color:var(--verde)">Kz ${formatarValor(p.precoV)}</td><td style="font-family:var(--mono)">${p.validade||'—'}</td><td>${est} ${estV}</td><td>${acoes}</td></tr>`;
   }).join('');
 }
 function filtrarDonoStock(val) { filtroDonoStock=val; renderStock(); }
@@ -3877,24 +3877,24 @@ function exportarRelatorioExpirarCSV() {
   _downloadCSV('produtos-a-expirar.csv', linhas);
 }
 
-// RELATÓRIO: produtos marcados como "Raquel" (ex: HCG, Pílula) — stock, validades e mínimo
-function exportarRelatorioRaquel() {
+// RELATÓRIO: produtos marcados como "Gestão" (ex: HCG, Pílula) — stock, validades e mínimo
+function exportarRelatorioGestao() {
   const hoje = new Date();
   const farmacia = db.config.farmacia || 'Farmácia Alvirosil';
-  const produtosRaquel = db.produtos.filter(p => (p.dono || 'farmacia') === 'raquel');
+  const produtosGestao = db.produtos.filter(p => (p.dono || 'farmacia') === 'gestao');
 
-  if (!produtosRaquel.length) {
-    alert('Ainda não existem produtos marcados como "Raquel". Marca o proprietário ao criar/editar o produto em Stock.');
+  if (!produtosGestao.length) {
+    alert('Ainda não existem produtos marcados como "Gestão". Marca o proprietário ao criar/editar o produto em Stock.');
     return;
   }
 
-  const valorStock = produtosRaquel.reduce((s, p) => s + p.qty * p.precoV, 0);
-  const valorCusto = produtosRaquel.reduce((s, p) => s + p.qty * p.precoC, 0);
-  const abaixoMin = produtosRaquel.filter(p => p.qty <= p.min);
-  const vencidos = produtosRaquel.filter(p => p.validade && new Date(p.validade) < hoje);
-  const aVencer = produtosRaquel.filter(p => { if (!p.validade) return false; const dias = Math.floor((new Date(p.validade) - hoje) / 86400000); return dias >= 0 && dias <= 90; });
+  const valorStock = produtosGestao.reduce((s, p) => s + p.qty * p.precoV, 0);
+  const valorCusto = produtosGestao.reduce((s, p) => s + p.qty * p.precoC, 0);
+  const abaixoMin = produtosGestao.filter(p => p.qty <= p.min);
+  const vencidos = produtosGestao.filter(p => p.validade && new Date(p.validade) < hoje);
+  const aVencer = produtosGestao.filter(p => { if (!p.validade) return false; const dias = Math.floor((new Date(p.validade) - hoje) / 86400000); return dias >= 0 && dias <= 90; });
 
-  const linhasStock = produtosRaquel
+  const linhasStock = produtosGestao
     .slice().sort((a, b) => a.nome.localeCompare(b.nome))
     .map(p => {
       const est = p.qty === 0 ? '<span class="badge badge-critico">Esgotado</span>' : (p.qty <= p.min ? '<span class="badge badge-aviso">Baixo</span>' : '<span class="badge badge-ok">OK</span>');
@@ -3916,22 +3916,22 @@ function exportarRelatorioRaquel() {
         }).join('')
     : '<tr><td colspan="5" class="vazio-msg">Sem produtos vencidos ou a vencer nos próximos 90 dias</td></tr>';
 
-  const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Produtos da Raquel — ${farmacia}</title>
+  const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Produtos da Gestão — ${farmacia}</title>
   <style>${_estiloRelatorioRapido()}</style></head><body>
     <div class="acoes-impressao"><button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div>
     <div class="page">
-      ${_cabecalhoRelatorioRapido('Relatório Pessoal', 'Produtos da Raquel')}
+      ${_cabecalhoRelatorioRapido('Relatório Pessoal', 'Produtos da Gestão')}
       <div class="corpo">
         <div class="sec">
           <div class="kpi-grid">
-            <div class="kpi" style="border-left-color:#7C3AED"><div class="kpi-label">Produtos</div><div class="kpi-valor">${produtosRaquel.length}</div><div class="kpi-sub">no total</div></div>
+            <div class="kpi" style="border-left-color:#7C3AED"><div class="kpi-label">Produtos</div><div class="kpi-valor">${produtosGestao.length}</div><div class="kpi-sub">no total</div></div>
             <div class="kpi verde"><div class="kpi-label">Valor de Stock (venda)</div><div class="kpi-valor">Kz ${formatarValor(valorStock)}</div><div class="kpi-sub">Kz ${formatarValor(valorCusto)} ao custo</div></div>
             <div class="kpi amarelo"><div class="kpi-label">Abaixo do Mínimo</div><div class="kpi-valor">${abaixoMin.length}</div><div class="kpi-sub">a repor</div></div>
             <div class="kpi vermelho"><div class="kpi-label">Vencidos / A Vencer (90d)</div><div class="kpi-valor">${vencidos.length + aVencer.length}</div><div class="kpi-sub">${vencidos.length} já vencido(s)</div></div>
           </div>
         </div>
         <div class="sec">
-          <div class="sec-head"><span class="sec-icon">👩</span><span class="sec-titulo">Stock Completo — Produtos da Raquel</span><span class="sec-linha"></span></div>
+          <div class="sec-head"><span class="sec-icon">👩</span><span class="sec-titulo">Stock Completo — Produtos da Gestão</span><span class="sec-linha"></span></div>
           <table><thead><tr><th>Produto</th><th>Categoria</th><th class="num">Stock</th><th class="num">Mínimo</th><th class="num">Preço Venda</th><th>Validade</th><th>Estado</th></tr></thead><tbody>${linhasStock}</tbody></table>
         </div>
         <div class="sec">
@@ -3950,18 +3950,18 @@ function exportarRelatorioRaquel() {
   _abrirJanelaRelatorio(html);
 }
 
-function exportarRelatorioRaquelCSV() {
-  const produtosRaquel = db.produtos.filter(p => (p.dono || 'farmacia') === 'raquel');
-  if (!produtosRaquel.length) {
-    alert('Ainda não existem produtos marcados como "Raquel".');
+function exportarRelatorioGestaoCSV() {
+  const produtosGestao = db.produtos.filter(p => (p.dono || 'farmacia') === 'gestao');
+  if (!produtosGestao.length) {
+    alert('Ainda não existem produtos marcados como "Gestão".');
     return;
   }
   const linhas = [['Produto', 'Categoria', 'Stock', 'Mínimo', 'Preço Compra', 'Preço Venda', 'Validade', 'Estado']];
-  produtosRaquel.forEach(p => {
+  produtosGestao.forEach(p => {
     const estado = p.qty === 0 ? 'Esgotado' : (p.qty <= p.min ? 'Baixo' : 'OK');
     linhas.push([p.nome, p.categoria || '', p.qty, p.min, p.precoC, p.precoV, p.validade || '', estado]);
   });
-  _downloadCSV('produtos-raquel.csv', linhas);
+  _downloadCSV('produtos-gestao.csv', linhas);
 }
 
 // RELATÓRIO: produtos vencidos + a vencer (horizonte configurável) + produtos abaixo do stock mínimo

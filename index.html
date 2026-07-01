@@ -493,6 +493,7 @@
           <div class="total-principal"><span>TOTAL</span><span id="pdv-total">Kz 0,00</span></div>
         </div>
         <div class="pdv-acoes">
+          <div class="form-group"><label>Data da Venda</label><input type="date" id="pdv-data-venda"><div style="font-size:11px;color:var(--cinza);margin-top:2px">Só altera se estiveres a lançar uma venda atrasada de outro dia.</div></div>
           <div class="form-group"><label>Cliente (opcional)</label><input type="text" id="pdv-cliente" placeholder="Nome do cliente"></div>
           <div class="form-group"><label>NIF do Cliente (opcional)</label><input type="text" id="pdv-cliente-nif" placeholder="Ex: 5417123456 (deixe vazio p/ Consumidor Final)"></div>
           <div class="form-group"><label>Forma de Pagamento</label><select id="pdv-pagamento"><option>Dinheiro</option><option>Transferência</option><option>Multicaixa</option><option>Crédito</option></select></div>
@@ -530,7 +531,22 @@
           <input type="month" id="rel-mes-ref">
         </div>
         <button class="btn btn-primary" onclick="exportarRelatorioMensal()">📄 Exportar Relatório Mensal (PDF)</button>
-        <span style="font-size:12px;color:var(--cinza)">Abre numa nova janela — escolhe "Guardar como PDF" na caixa de impressão.</span>
+        <span style="font-size:12px;color:var(--cinza)">Abre numa nova janela — escolhe "Guardar como PDF" na caixa de impressão.<br>O período do relatório vai do dia 6 do mês anterior ao dia 5 do mês selecionado, para permitir fechar as contas até ao dia 7 (compensando atrasos ao inserir vendas no sistema).</span>
+      </div>
+    </div>
+    <div class="painel">
+      <div class="painel-header"><span class="painel-titulo">🔒 Fecho de Mês</span></div>
+      <div class="painel-body" style="display:flex;flex-direction:column;gap:12px">
+        <div id="fecho-status" style="font-size:13.5px;font-weight:600"></div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+          <div class="form-group" style="margin:0">
+            <label>Fechar contas até (inclusive)</label>
+            <input type="date" id="fecho-data-ate">
+          </div>
+          <button class="btn btn-danger" onclick="fecharContasAte()">🔒 Fechar Contas</button>
+          <button class="btn btn-outline" onclick="reabrirContas()">🔓 Reabrir</button>
+        </div>
+        <span style="font-size:12px;color:var(--cinza)">🤖 A partir do dia 7 de cada mês, o sistema fecha automaticamente as contas do período anterior (até dia 5) sozinho, sem precisares de fazer nada. Usa os botões abaixo só se quiseres fechar mais cedo (antes do dia 7) ou reabrir por algum motivo.<br>🔓 Reabrir: escolhe uma data e clica "Reabrir" para recuar o fecho só até essa data (reabre apenas as vendas mais recentes). Deixa o campo vazio para reabrir todo o histórico. Só o Gerente pode reabrir.</span>
       </div>
     </div>
     <div class="painel">
@@ -607,6 +623,45 @@
           <button class="btn btn-success" style="width:100%;justify-content:center" onclick="abrirModalReposicao()">📥 Repor Automaticamente no Stock</button>
           <span style="font-size:11.5px;color:var(--cinza)">Sugestão de quantidades a comprar (PDF e CSV, agrupados por fornecedor) e atualização do stock de uma só vez quando a encomenda chegar.</span>
         </div>
+      </div>
+    </div>
+    <div class="painel">
+      <div class="painel-header"><span class="painel-titulo">📋 Balanço de Estoque (Contagem Física)</span></div>
+      <div class="painel-body" style="display:flex;flex-direction:column;gap:14px">
+        <span style="font-size:12px;color:var(--cinza)">Insere a contagem física dos produtos que sobraram no armazém/prateleira e compara automaticamente com as vendas do período e com o stock atual do sistema. No final obténs o resultado: produtos certos, em falta (quebra) ou a mais (sobra), e o valor dessa diferença ao preço de custo.</span>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+          <div class="form-group" style="margin:0">
+            <label>Tipo de Balanço</label>
+            <select id="balanco-tipo" style="padding:9px 12px" onchange="atualizarCamposPeriodoBalanco()">
+              <option value="mensal">Mensal</option>
+              <option value="trimestral">Trimestral</option>
+              <option value="anual">Anual</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0" id="balanco-campo-mes">
+            <label>Mês de referência</label>
+            <input type="month" id="balanco-mes-ref">
+          </div>
+          <div class="form-group" style="margin:0;display:none" id="balanco-campo-trimestre">
+            <label>Trimestre</label>
+            <select id="balanco-trimestre-ref" style="padding:9px 12px">
+              <option value="1">1º Trimestre (Jan–Mar)</option>
+              <option value="2">2º Trimestre (Abr–Jun)</option>
+              <option value="3">3º Trimestre (Jul–Set)</option>
+              <option value="4">4º Trimestre (Out–Dez)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;display:none" id="balanco-campo-ano-trimestre">
+            <label>Ano</label>
+            <input type="number" id="balanco-ano-trimestre-ref" style="width:100px" placeholder="2026">
+          </div>
+          <div class="form-group" style="margin:0;display:none" id="balanco-campo-ano">
+            <label>Ano de referência</label>
+            <input type="number" id="balanco-ano-ref" style="width:100px" placeholder="2026">
+          </div>
+          <button class="btn btn-primary" onclick="abrirModalBalanco()">📝 Iniciar Contagem / Balanço</button>
+        </div>
+        <div id="balancos-historico-container"></div>
       </div>
     </div>
     <div class="painel"><div class="painel-header"><span class="painel-titulo">💾 Dados</span></div><div class="painel-body" style="display:flex;gap:12px;flex-wrap:wrap"><button class="btn btn-outline" onclick="exportarDados()">⬇️ Exportar JSON</button><button class="btn btn-outline" onclick="importarDados()">⬆️ Importar JSON</button><button class="btn btn-danger" onclick="resetarDados()">🗑️ Apagar Tudo</button></div></div>
@@ -1033,6 +1088,24 @@
   </div>
 </div>
 
+<!-- MODAL EDITAR VENDA -->
+<div class="modal-overlay" id="modal-editar-venda">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-titulo" id="modal-editar-venda-titulo">✏️ Editar Venda</span><button class="modal-close" onclick="fecharModal('modal-editar-venda')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="editar-venda-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Data da Venda</label><input type="date" id="editar-venda-data"></div>
+        <div class="form-group"><label>Forma de Pagamento</label><select id="editar-venda-pagamento"><option>Dinheiro</option><option>Transferência</option><option>Multicaixa</option><option>Crédito</option></select></div>
+        <div class="form-group" style="grid-column:span 2"><label>Cliente (opcional)</label><input type="text" id="editar-venda-cliente" placeholder="Nome do cliente"></div>
+        <div class="form-group" style="grid-column:span 2"><label>NIF do Cliente (opcional)</label><input type="text" id="editar-venda-nif" placeholder="Ex: 5417123456"></div>
+      </div>
+      <div style="font-size:11.5px;color:var(--cinza);margin-top:8px">Só corrige data, cliente e forma de pagamento. Para corrigir produtos/quantidades, cancela esta venda e regista-a novamente.</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="fecharModal('modal-editar-venda')">Cancelar</button><button class="btn btn-primary" onclick="guardarEdicaoVenda()">Guardar Alterações</button></div>
+  </div>
+</div>
+
 <!-- MODAL CRIAR PEDIDO (Farmacêutico) -->
 <div class="modal-overlay" id="modal-pedido">
   <div class="modal">
@@ -1067,6 +1140,31 @@
       <div id="reposicao-list-container" style="max-height:440px;overflow-y:auto"></div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="fecharModal('modal-reposicao')">Cancelar</button><button class="btn btn-success" onclick="confirmarReposicao()">✅ Confirmar Reposição</button></div>
+  </div>
+</div>
+
+<!-- MODAL BALANÇO DE ESTOQUE (CONTAGEM FÍSICA) -->
+<div class="modal-overlay" id="modal-balanco">
+  <div class="modal" style="max-width:920px">
+    <div class="modal-header"><span class="modal-titulo" id="modal-balanco-titulo">📋 Balanço de Estoque</span><button class="modal-close" onclick="fecharModal('modal-balanco')">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--cinza);margin-top:0">Preenche a coluna <strong>Físico Contado</strong> com o que sobrou realmente no armazém/prateleira. Por defeito aparece igual ao stock do sistema — só precisas de alterar onde houver diferença.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <input type="text" id="balanco-filtro" placeholder="🔍 Filtrar por nome ou categoria..." style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px" oninput="filtrarBalancoModal(this.value)">
+        <span style="font-size:12px;color:var(--cinza)" id="balanco-resumo-live"></span>
+      </div>
+      <div id="balanco-list-container" style="max-height:440px;overflow-y:auto"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="fecharModal('modal-balanco')">Cancelar</button><button class="btn btn-primary" onclick="salvarBalanco()">✅ Concluir Balanço e Ver Resultado</button></div>
+  </div>
+</div>
+
+<!-- MODAL RESULTADO DO BALANÇO -->
+<div class="modal-overlay" id="modal-balanco-resultado">
+  <div class="modal" style="max-width:820px">
+    <div class="modal-header"><span class="modal-titulo">📊 Resultado do Balanço</span><button class="modal-close" onclick="fecharModal('modal-balanco-resultado')">✕</button></div>
+    <div class="modal-body" id="balanco-resultado-container" style="max-height:520px;overflow-y:auto"></div>
+    <div class="modal-footer" id="balanco-resultado-footer"></div>
   </div>
 </div>
 
@@ -1173,27 +1271,99 @@ const PERMISSOES = {
 let utilizadorAtual = null;
 let editandoSenhaUser = null;
 
+// ============ HASH DE SENHAS (SHA-256, síncrono, sem dependências) ============
+// As senhas nunca são guardadas em texto simples — só o hash fica no localStorage.
+function sha256Hex(mensagemOriginal) {
+  let mensagem = unescape(encodeURIComponent(mensagemOriginal)); // converte para bytes UTF-8
+  function rightRotate(v, n){ return (v>>>n) | (v<<(32-n)); }
+  const maxWord = Math.pow(2,32);
+  let result = '';
+  const words = [];
+  const asciiBitLength = mensagem.length*8;
+  let hash = [];
+  let k = [];
+  let primeCounter = 0;
+  const isComposite = {};
+  for (let candidate = 2; primeCounter < 64; candidate++) {
+    if (!isComposite[candidate]) {
+      for (let i=0;i<313;i+=candidate){ isComposite[i]=candidate; }
+      hash[primeCounter]=(Math.pow(candidate,0.5)*maxWord)|0;
+      k[primeCounter++]=(Math.pow(candidate,1/3)*maxWord)|0;
+    }
+  }
+  mensagem += '\x80';
+  while (mensagem.length%64 - 56) mensagem += '\x00';
+  for (let i=0;i<mensagem.length;i++){
+    const j = mensagem.charCodeAt(i);
+    words[i>>2] |= j << ((3-i)%4)*8;
+  }
+  words[words.length] = ((asciiBitLength/maxWord)|0);
+  words[words.length] = (asciiBitLength);
+
+  for (let j=0;j<words.length;){
+    const w = words.slice(j,j+=16);
+    const oldHash = hash.slice(0);
+    hash = hash.slice(0,8);
+    for (let i=0;i<64;i++){
+      const w15 = w[i-15], w2 = w[i-2];
+      const a = hash[0], e = hash[4];
+      const temp1 = hash[7]
+        + (rightRotate(e,6) ^ rightRotate(e,11) ^ rightRotate(e,25))
+        + ((e&hash[5])^((~e)&hash[6]))
+        + k[i]
+        + (w[i] = (i<16) ? w[i] : (
+            w[i-16]
+            + (rightRotate(w15,7) ^ rightRotate(w15,18) ^ (w15>>>3))
+            + w[i-7]
+            + (rightRotate(w2,17) ^ rightRotate(w2,19) ^ (w2>>>10))
+          )|0
+        );
+      const temp2 = (rightRotate(a,2) ^ rightRotate(a,13) ^ rightRotate(a,22)) + ((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
+      hash = [(temp1+temp2)|0].concat(hash);
+      hash[4] = (hash[4]+temp1)|0;
+    }
+    for (let i=0;i<8;i++){
+      hash[i] = (hash[i]+oldHash[i])|0;
+    }
+  }
+  for (let i=0;i<8;i++){
+    for (let j=3;j+1;j--){
+      const b = (hash[i]>>(j*8)) & 255;
+      result += ((b<16)?'0':'') + b.toString(16);
+    }
+  }
+  return result;
+}
+// Salga com o nome do perfil, para que a mesma senha em duas contas não gere o mesmo hash.
+function hashSenha(userKey, senhaTexto) { return sha256Hex('farmagest::' + userKey + '::' + senhaTexto); }
+
 function carregarUsers() {
   const raw = localStorage.getItem(USERS_KEY);
   if (raw) {
     try {
       const dados = JSON.parse(raw);
+      let alterado = false;
       // Migração: formato antigo era {gerente: "senha"} -> novo é {gerente: {senha, nomeReal}}
       Object.keys(dados).forEach(k => {
         if (typeof dados[k] === 'string') dados[k] = { senha: dados[k], nomeReal: '' };
         if (dados[k].nomeReal === undefined) dados[k].nomeReal = '';
+        // Migração: senha ainda em texto simples -> hash (nunca voltamos a guardar em claro)
+        if (!dados[k].hash) {
+          dados[k].senha = hashSenha(k, dados[k].senha);
+          dados[k].hash = true;
+          alterado = true;
+        }
       });
       // Preencher perfis novos (ex: gerente_admin) que ainda não existem neste dispositivo
-      let alterado = false;
       Object.keys(PERFIS).forEach(k => {
-        if (!dados[k]) { dados[k] = { senha: PERFIS[k].senhaDefault, nomeReal: '' }; alterado = true; }
+        if (!dados[k]) { dados[k] = { senha: hashSenha(k, PERFIS[k].senhaDefault), nomeReal: '', hash: true }; alterado = true; }
       });
       if (alterado) localStorage.setItem(USERS_KEY, JSON.stringify(dados));
       return dados;
     } catch(e) {}
   }
   const padrao = {};
-  Object.keys(PERFIS).forEach(k => { padrao[k] = { senha: PERFIS[k].senhaDefault, nomeReal: '' }; });
+  Object.keys(PERFIS).forEach(k => { padrao[k] = { senha: hashSenha(k, PERFIS[k].senhaDefault), nomeReal: '', hash: true }; });
   localStorage.setItem(USERS_KEY, JSON.stringify(padrao));
   return padrao;
 }
@@ -1211,7 +1381,7 @@ function fazerLogin() {
   erro.classList.remove('visivel');
   if (!user) { erro.textContent = 'Seleccione um perfil.'; erro.classList.add('visivel'); return; }
   const users = carregarUsers();
-  if (users[user].senha !== senha) { erro.textContent = 'Senha incorrecta. Tente novamente.'; erro.classList.add('visivel'); return; }
+  if (users[user].senha !== hashSenha(user, senha)) { erro.textContent = 'Senha incorrecta. Tente novamente.'; erro.classList.add('visivel'); return; }
   utilizadorAtual = user;
   sessionStorage.setItem(SESS_KEY, user);
   document.getElementById('tela-login').classList.add('oculto');
@@ -1305,7 +1475,7 @@ function renderConfigUsers() {
         <div class="user-avatar ${PERFIS[k].avatar}">${PERFIS[k].emoji}</div>
         <div>
           <div class="user-card-nome">${PERFIS[k].nome}${users[k].nomeReal ? ' — '+users[k].nomeReal : ''}</div>
-          <div class="user-card-role">Utilizador: <strong>${k}</strong> · Senha: ${'•'.repeat(users[k].senha.length)}</div>
+          <div class="user-card-role">Utilizador: <strong>${k}</strong> · Senha: ••••••••</div>
         </div>
       </div>
       <button class="btn btn-outline btn-sm" onclick="abrirModalSenha('${k}')">✏️ Editar</button>
@@ -1334,7 +1504,8 @@ function salvarSenha() {
   if (nova || conf) {
     if (nova.length < 4) { erro.textContent = 'A senha deve ter pelo menos 4 caracteres.'; erro.classList.add('visivel'); return; }
     if (nova !== conf) { erro.textContent = 'As senhas não coincidem.'; erro.classList.add('visivel'); return; }
-    users[editandoSenhaUser].senha = nova;
+    users[editandoSenhaUser].senha = hashSenha(editandoSenhaUser, nova);
+    users[editandoSenhaUser].hash = true;
   }
   users[editandoSenhaUser].nomeReal = nomeReal;
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
@@ -2117,7 +2288,7 @@ function renderLogs() {
 const DB_KEY = 'farmagest_alvirosil';
 let db = {
   produtos: [], produtosRemovidos: [], vendas: [], avisos: [], pedidos: [], alteracoes: [], funcionarios: [], 
-  ponto: [], comissoes: [], escala: [], logs: [],
+  ponto: [], comissoes: [], escala: [], logs: [], balancos: [],
   config: {
     farmacia: 'Farmácia Alvirosil',
     endereco: 'Bairro 4 de Fevereiro, Rua do Liceu',
@@ -2235,6 +2406,7 @@ function mesclarDb(dbBase, dbPrioritario) {
     comissoes: mesclarListas(dbBase.comissoes, dbPrioritario.comissoes),
     escala: mesclarListas(dbBase.escala, dbPrioritario.escala),
     logs: mesclarListas(dbBase.logs, dbPrioritario.logs),
+    balancos: mesclarListas(dbBase.balancos, dbPrioritario.balancos),
     config: configMesclado
   };
 }
@@ -2255,6 +2427,7 @@ async function sincronizarComNuvem() {
       if (!db.avisos) db.avisos = [];
       if (!db.funcionarios) db.funcionarios = [];
       if (!db.config) db.config = {};
+      if (!db.balancos) db.balancos = [];
       localStorage.setItem(DB_KEY, JSON.stringify(db));
       renderAll();
       atualizarBadgeNuvem('☁️ Sincronizado');
@@ -2327,6 +2500,7 @@ function escutarMudancasDaNuvem() {
     if (!db.vendas) db.vendas = [];
     if (!db.avisos) db.avisos = [];
     if (!db.funcionarios) db.funcionarios = [];
+    if (!db.balancos) db.balancos = [];
     if (!db.config) db.config = {};
     localStorage.setItem(DB_KEY, JSON.stringify(db));
     renderAll();
@@ -2343,6 +2517,7 @@ function carregarDB() {
   if (!db.alteracoes) db.alteracoes = [];
   if (!db.vendas) db.vendas = [];
   if (!db.avisos) db.avisos = [];
+  if (!db.balancos) db.balancos = [];
   if (!db.config) db.config = {};
   const padroes = { farmacia:'Farmácia Alvirosil', endereco:'Bairro 4 de Fevereiro, Rua do Liceu', municipio:'Maquela do Zombo', provincia:'Uíge', nif:'', telefone:'', horario:'', bannerTitulo:'Farmácia Alvirosil', bannerSub:'Maquela do Zombo, Uíge · Painel de Gestão', logo:null };
   Object.keys(padroes).forEach(k => { if (db.config[k] === undefined) db.config[k] = padroes[k]; });
@@ -2682,6 +2857,7 @@ function navegar(sec, btn) {
 
 // ============ RENDER ============
 function renderAll() {
+  autoFecharContas();
   renderBanners(); renderDashboard(); renderStock(); renderValidades(); renderPDV(); renderVendas(); renderRelatorios();
   atualizarBadgeAprovacoes();
 }
@@ -2901,6 +3077,8 @@ function renderValidades() {
 }
 
 function renderPDV(filtro='') {
+  const dvInput=document.getElementById('pdv-data-venda');
+  if(dvInput && !dvInput.value) dvInput.value = new Date().toISOString().slice(0,10);
   const lista=document.getElementById('pdv-lista');
   let produtos=db.produtos.filter(p=>p.qty>0);
   if(filtro)produtos=produtos.filter(p=>p.nome.toLowerCase().includes(filtro.toLowerCase()));
@@ -2936,11 +3114,68 @@ function finalizarVenda() {
   const clienteNif=document.getElementById('pdv-cliente-nif').value.trim();
   const pagamento=document.getElementById('pdv-pagamento').value;
   const num=(db.vendas.length+1).toString().padStart(4,'0');
-  const venda={id:gerarId(),num,data:new Date().toISOString(),cliente,clienteNif,pagamento,total,itens:carrinho.map(c=>({...c})),operador:utilizadorAtual||'—'};
+
+  const agora=new Date();
+  const dataVendaStr=document.getElementById('pdv-data-venda').value;
+  let dataVenda=agora;
+  if(dataVendaStr){
+    const [ano,mes,dia]=dataVendaStr.split('-').map(Number);
+    const candidata=new Date(ano,mes-1,dia,agora.getHours(),agora.getMinutes(),agora.getSeconds());
+    const hojeFimDia=new Date(agora.getFullYear(),agora.getMonth(),agora.getDate(),23,59,59,999);
+    if(candidata>hojeFimDia){ alert('A data da venda não pode ser no futuro. Verifica o campo "Data da Venda".'); return; }
+    if(dataFechada(candidata)){ alert('Esse período já está fechado. Pede ao Gerente para reabrir as contas se precisares mesmo de lançar uma venda com essa data.'); return; }
+    dataVenda=candidata;
+  }
+
+  const venda={id:gerarId(),num,data:dataVenda.toISOString(),dataRegisto:agora.toISOString(),cliente,clienteNif,pagamento,total,itens:carrinho.map(c=>({...c})),operador:utilizadorAtual||'—'};
   carrinho.forEach(c=>{const prod=db.produtos.find(p=>p.id===c.id);if(prod)prod.qty-=c.qty;});
   db.vendas.push(venda); salvarDB();
-  registarLog('Realizou venda #' + num + ' no valor de Kz ' + formatarValor(total) + ' (Cliente: ' + (cliente || 'Consumidor Final') + ')');
-  mostrarRecibo(venda); carrinho=[]; document.getElementById('pdv-cliente').value=''; document.getElementById('pdv-cliente-nif').value=''; renderAll();
+  const atrasoTxt = dataVendaStr && dataVendaStr!==agora.toISOString().slice(0,10) ? ` (venda lançada com atraso, referente a ${new Date(dataVenda).toLocaleDateString('pt-AO')})` : '';
+  registarLog('Realizou venda #' + num + ' no valor de Kz ' + formatarValor(total) + ' (Cliente: ' + (cliente || 'Consumidor Final') + ')' + atrasoTxt);
+  mostrarRecibo(venda); carrinho=[]; document.getElementById('pdv-cliente').value=''; document.getElementById('pdv-cliente-nif').value=''; document.getElementById('pdv-data-venda').value=''; renderAll();
+}
+
+function abrirModalEditarVenda(id) {
+  if (utilizadorAtual !== 'gerente') { alert('Apenas o Gerente pode editar vendas.'); return; }
+  const venda = db.vendas.find(v => v.id === id);
+  if (!venda) return;
+  if (venda.cancelada) { alert('Não é possível editar uma venda cancelada.'); return; }
+  if (dataFechada(venda.data)) { alert('Esta venda está num período já fechado. Reabre as contas primeiro se precisares de a corrigir.'); return; }
+  document.getElementById('editar-venda-id').value = venda.id;
+  document.getElementById('editar-venda-data').value = new Date(venda.data).toISOString().slice(0,10);
+  document.getElementById('editar-venda-cliente').value = venda.cliente || '';
+  document.getElementById('editar-venda-nif').value = venda.clienteNif || '';
+  document.getElementById('editar-venda-pagamento').value = venda.pagamento;
+  document.getElementById('modal-editar-venda-titulo').textContent = `✏️ Editar Venda #${venda.num}`;
+  document.getElementById('modal-editar-venda').classList.add('open');
+}
+
+function guardarEdicaoVenda() {
+  const id = document.getElementById('editar-venda-id').value;
+  const venda = db.vendas.find(v => v.id === id);
+  if (!venda) return;
+  const novaDataStr = document.getElementById('editar-venda-data').value;
+  if (!novaDataStr) { alert('Escolhe uma data válida.'); return; }
+  const [ano,mes,dia] = novaDataStr.split('-').map(Number);
+  const dOriginal = new Date(venda.data);
+  const novaData = new Date(ano, mes-1, dia, dOriginal.getHours(), dOriginal.getMinutes(), dOriginal.getSeconds());
+  const agora = new Date();
+  const hojeFimDia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23,59,59,999);
+  if (novaData > hojeFimDia) { alert('A data da venda não pode ser no futuro.'); return; }
+  if (dataFechada(novaData.toISOString())) { alert('Essa nova data cai num período já fechado. Escolhe uma data fora do período fechado, ou reabre as contas primeiro.'); return; }
+
+  const dataAntiga = venda.data;
+  const pagamentoAntigo = venda.pagamento;
+  venda.data = novaData.toISOString();
+  venda.cliente = document.getElementById('editar-venda-cliente').value;
+  venda.clienteNif = document.getElementById('editar-venda-nif').value.trim();
+  venda.pagamento = document.getElementById('editar-venda-pagamento').value;
+  venda.editadoPor = utilizadorAtual;
+  venda.editadoEm = new Date().toISOString();
+  salvarDB();
+  registarLog(`Editou a venda #${venda.num}: data ${new Date(dataAntiga).toLocaleDateString('pt-AO')} → ${novaData.toLocaleDateString('pt-AO')}, pagamento ${pagamentoAntigo} → ${venda.pagamento}`);
+  fecharModal('modal-editar-venda');
+  renderAll();
 }
 
 function cancelarVenda(id) {
@@ -2948,6 +3183,7 @@ function cancelarVenda(id) {
   const venda = db.vendas.find(v => v.id === id);
   if (!venda) return;
   if (venda.cancelada) { alert('Esta venda já está cancelada.'); return; }
+  if (dataFechada(venda.data)) { alert('Esta venda está num período já fechado e não pode ser cancelada. Reabre as contas primeiro se precisares mesmo de a cancelar.'); return; }
   if (!confirm(`Cancelar a venda #${venda.num} (Kz ${formatarValor(venda.total)})? O stock dos produtos será restituído.`)) return;
 
   venda.itens.forEach(item => {
@@ -3264,7 +3500,98 @@ function renderVendas() {
   const tb=document.getElementById('tabela-vendas');
   const vendas=[...db.vendas].reverse();
   if(vendas.length===0){tb.innerHTML='<tr><td colspan="7"><div class="vazio"><div class="vazio-icon">📋</div>Sem vendas registadas</div></td></tr>';return;}
-  tb.innerHTML=vendas.map(v=>`<tr style="${v.cancelada?'opacity:.55':''}"><td style="font-family:var(--mono);color:var(--cinza)">#${v.num}${v.cancelada?' <span style="color:var(--vermelho);font-size:10px;font-weight:700">CANCELADA</span>':''}</td><td>${new Date(v.data).toLocaleString('pt-AO')}</td><td>${v.cliente||'—'}</td><td>${v.itens.length} item(s)</td><td><span style="font-size:12px;background:var(--azul-pale);color:var(--azul);padding:3px 8px;border-radius:20px">${v.pagamento}</span></td><td style="font-family:var(--mono);font-weight:600;color:${v.cancelada?'var(--cinza)':'var(--verde)'}">Kz ${formatarValor(v.total)}</td><td style="display:flex;gap:6px"><button class="btn btn-outline btn-sm" onclick="mostrarRecibo(db.vendas.find(x=>x.id==='${v.id}'))">🧾</button>${(!v.cancelada && utilizadorAtual==='gerente')?`<button class="btn btn-danger btn-sm" onclick="cancelarVenda('${v.id}')" title="Cancelar venda">✕</button>`:''}</td></tr>`).join('');
+  tb.innerHTML=vendas.map(v=>{const fechada=!v.cancelada&&dataFechada(v.data);return `<tr style="${v.cancelada?'opacity:.55':''}"><td style="font-family:var(--mono);color:var(--cinza)">#${v.num}${v.cancelada?' <span style="color:var(--vermelho);font-size:10px;font-weight:700">CANCELADA</span>':''}${(!v.cancelada && v.editadoEm)?' <span style="color:var(--amarelo,#E67E22);font-size:10px;font-weight:700">EDITADA</span>':''}${fechada?' <span style="color:var(--cinza);font-size:10px;font-weight:700">🔒 FECHADA</span>':''}</td><td>${new Date(v.data).toLocaleString('pt-AO')}</td><td>${v.cliente||'—'}</td><td>${v.itens.length} item(s)</td><td><span style="font-size:12px;background:var(--azul-pale);color:var(--azul);padding:3px 8px;border-radius:20px">${v.pagamento}</span></td><td style="font-family:var(--mono);font-weight:600;color:${v.cancelada?'var(--cinza)':'var(--verde)'}">Kz ${formatarValor(v.total)}</td><td style="display:flex;gap:6px"><button class="btn btn-outline btn-sm" onclick="mostrarRecibo(db.vendas.find(x=>x.id==='${v.id}'))">🧾</button>${(!v.cancelada && !fechada && utilizadorAtual==='gerente')?`<button class="btn btn-outline btn-sm" onclick="abrirModalEditarVenda('${v.id}')" title="Editar venda (data, cliente, pagamento)">✏️</button>`:''}${(!v.cancelada && !fechada && utilizadorAtual==='gerente')?`<button class="btn btn-danger btn-sm" onclick="cancelarVenda('${v.id}')" title="Cancelar venda">✕</button>`:''}</td></tr>`;}).join('');
+}
+
+// ============ FECHO DE MÊS ============
+function dataFechada(dataISO) {
+  if (!db.config || !db.config.fechoAte) return false;
+  const d = new Date(dataISO); d.setHours(0,0,0,0);
+  const fecho = new Date(db.config.fechoAte+'T00:00:00');
+  return d <= fecho;
+}
+
+// Fecha automaticamente, sem intervenção humana, o período "dia 6 a dia 5" mais recente
+// cujo prazo de tolerância (até dia 7) já passou. Nunca recua um fecho já feito.
+function autoFecharContas() {
+  if (!db.config) db.config = {};
+  const hoje = new Date();
+  let anoP, mesP;
+  if (hoje.getDate() >= 7) { anoP = hoje.getFullYear(); mesP = hoje.getMonth()+1; }
+  else { const prev = new Date(hoje.getFullYear(), hoje.getMonth()-1, 1); anoP = prev.getFullYear(); mesP = prev.getMonth()+1; }
+  const candidata = new Date(anoP, mesP-1, 5);
+  const candidataStr = candidata.getFullYear()+'-'+String(candidata.getMonth()+1).padStart(2,'0')+'-'+String(candidata.getDate()).padStart(2,'0');
+  const atual = db.config.fechoAte;
+  if (!atual || candidataStr > atual) {
+    db.config.fechoAte = candidataStr;
+    db.config.fechoPor = 'Automático (sistema, dia 7)';
+    db.config.fechoEm = new Date().toISOString();
+    salvarDB();
+    registarLog(`Fecho automático das contas até ${candidata.toLocaleDateString('pt-AO')}`);
+  }
+}
+
+function renderFechoMes() {
+  const statusEl = document.getElementById('fecho-status');
+  if (!statusEl) return;
+  const fechoAte = db.config && db.config.fechoAte;
+  statusEl.innerHTML = fechoAte
+    ? `🔒 Contas fechadas até <strong>${new Date(fechoAte+'T00:00:00').toLocaleDateString('pt-AO')}</strong>${db.config.fechoPor ? ' (por '+db.config.fechoPor+')' : ''}`
+    : '🔓 Ainda sem fecho definido — todas as vendas podem ser editadas.';
+  const inputData = document.getElementById('fecho-data-ate');
+  if (inputData && !inputData.value) inputData.value = fechoAte || '';
+}
+
+function fecharContasAte() {
+  if (utilizadorAtual !== 'gerente') { alert('Apenas o Gerente pode fechar as contas.'); return; }
+  const valor = document.getElementById('fecho-data-ate').value;
+  if (!valor) { alert('Escolhe uma data.'); return; }
+  const hoje = new Date(); hoje.setHours(23,59,59,999);
+  if (new Date(valor+'T00:00:00') > hoje) { alert('Não é possível fechar contas até uma data no futuro.'); return; }
+  if (!db.config) db.config = {};
+  if (db.config.fechoAte && valor < db.config.fechoAte) {
+    alert(`Essa data é anterior ao fecho atual (${new Date(db.config.fechoAte+'T00:00:00').toLocaleDateString('pt-AO')}). Para recuar o fecho, usa o botão "Reabrir".`);
+    return;
+  }
+  const anteriorTxt = db.config.fechoAte ? new Date(db.config.fechoAte+'T00:00:00').toLocaleDateString('pt-AO') : 'nenhum';
+  if (!confirm(`Confirmas o fecho das contas até ${new Date(valor+'T00:00:00').toLocaleDateString('pt-AO')}?\nDepois de fechado, as vendas até essa data deixam de poder ser editadas, canceladas, ou receber novos lançamentos.`)) return;
+  db.config.fechoAte = valor;
+  db.config.fechoPor = utilizadorAtual;
+  db.config.fechoEm = new Date().toISOString();
+  salvarDB();
+  registarLog(`Fechou as contas até ${new Date(valor+'T00:00:00').toLocaleDateString('pt-AO')} (fecho anterior: ${anteriorTxt})`);
+  renderFechoMes();
+  alert('Contas fechadas com sucesso.');
+}
+
+// Reabrir: se escolheres uma data no campo, recua o fecho só até essa data (reabertura parcial).
+// Se deixares o campo vazio, reabre TODO o histórico (reabertura total) — pede confirmação extra.
+function reabrirContas() {
+  if (utilizadorAtual !== 'gerente') { alert('Apenas o Gerente pode reabrir as contas.'); return; }
+  if (!db.config || !db.config.fechoAte) { alert('Não há nenhum fecho ativo.'); return; }
+  const fechoAtualStr = db.config.fechoAte;
+  const fechoAtualTxt = new Date(fechoAtualStr+'T00:00:00').toLocaleDateString('pt-AO');
+  const valor = document.getElementById('fecho-data-ate').value;
+
+  if (!valor) {
+    if (!confirm(`Isto vai reabrir TODO o histórico de vendas (atualmente fechado até ${fechoAtualTxt}) para edição — incluindo meses antigos.\n\nSe só precisas de corrigir vendas recentes, cancela e escolhe antes uma data no campo "Fechar contas até" para reabrir só até essa data.\n\nTens a certeza que queres reabrir tudo?`)) return;
+    registarLog(`Reabriu TODAS as contas (fecho anterior era até ${fechoAtualTxt})`);
+    delete db.config.fechoAte;
+    delete db.config.fechoPor;
+    delete db.config.fechoEm;
+  } else {
+    if (valor >= fechoAtualStr) { alert(`Para reabrir, a data tem de ser anterior ao fecho atual (${fechoAtualTxt}). Para avançar o fecho, usa o botão "Fechar Contas".`); return; }
+    const novaTxt = new Date(valor+'T00:00:00').toLocaleDateString('pt-AO');
+    if (!confirm(`Vais recuar o fecho de ${fechoAtualTxt} para ${novaTxt}.\nAs vendas com data entre ${novaTxt} (exclusive) e ${fechoAtualTxt} passam a poder ser editadas ou canceladas de novo. O resto do histórico (até ${novaTxt}) continua fechado.\n\nConfirmas?`)) return;
+    registarLog(`Recuou o fecho de ${fechoAtualTxt} para ${novaTxt} (reabertura parcial)`);
+    db.config.fechoAte = valor;
+    db.config.fechoPor = utilizadorAtual;
+    db.config.fechoEm = new Date().toISOString();
+  }
+  salvarDB();
+  document.getElementById('fecho-data-ate').value = '';
+  renderFechoMes();
+  alert('Contas reabertas com sucesso.');
 }
 
 function renderRelatorios() {
@@ -3287,6 +3614,15 @@ function renderRelatorios() {
   document.getElementById('grafico-categorias').innerHTML=catArr.map(([c,q])=>`<div class="bar-item"><div class="bar-label">${c}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(q/maxC*100)}%;background:var(--azul)"><span class="bar-val">${q}</span></div></div></div>`).join('');
   const inputMes=document.getElementById('rel-mes-ref');
   if(inputMes && !inputMes.value){const agora=new Date();inputMes.value=agora.getFullYear()+'-'+String(agora.getMonth()+1).padStart(2,'0');}
+  renderFechoMes();
+  renderBalancos();
+  const anoAtual = new Date().getFullYear();
+  const balMes = document.getElementById('balanco-mes-ref');
+  if (balMes && !balMes.value) balMes.value = new Date().toISOString().slice(0,7);
+  const balAnoTri = document.getElementById('balanco-ano-trimestre-ref');
+  if (balAnoTri && !balAnoTri.value) balAnoTri.value = anoAtual;
+  const balAno = document.getElementById('balanco-ano-ref');
+  if (balAno && !balAno.value) balAno.value = anoAtual;
 }
 
 // ============ RELATÓRIO MENSAL (PDF via impressão) ============
@@ -3295,10 +3631,14 @@ function exportarRelatorioMensal() {
   const agora = new Date();
   const anoSel = valMes ? parseInt(valMes.split('-')[0]) : agora.getFullYear();
   const mesSel = valMes ? parseInt(valMes.split('-')[1]) : agora.getMonth()+1;
-  const inicio = new Date(anoSel, mesSel-1, 1);
-  const fim = new Date(anoSel, mesSel, 1);
+  // Período de fecho: do dia 6 do mês anterior ao dia 5 do mês selecionado (fecho até dia 7)
+  const inicio = new Date(anoSel, mesSel-2, 6);
+  const fim = new Date(anoSel, mesSel-1, 6);
   const nomesMes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const tituloMes = nomesMes[mesSel-1]+' de '+anoSel;
+  const fimPeriodoLabel = new Date(fim.getTime()-86400000);
+  const fmtDataPT = d => String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+  const periodoLabel = `Período: ${fmtDataPT(inicio)} a ${fmtDataPT(fimPeriodoLabel)}`;
 
   const vendasMes = vendasAtivas().filter(v=>{const d=new Date(v.data);return d>=inicio && d<fim;});
   const totalReceita = vendasMes.reduce((s,v)=>s+v.total,0);
@@ -3331,10 +3671,16 @@ function exportarRelatorioMensal() {
     ? topProdutos.map(([n,d],i)=>`<tr><td>${i+1}</td><td>${n}</td><td style="text-align:right">${d.qty}</td><td style="text-align:right">Kz ${formatarValor(d.valor)}</td></tr>`).join('')
     : '<tr><td colspan="4" style="text-align:center;color:#9CA3AF">Sem vendas registadas neste período</td></tr>';
 
+  const todosProdutosVendidos = Object.entries(contagem).sort((a,b)=>b[1].qty-a[1].qty);
+  const totalUnidadesVendidas = todosProdutosVendidos.reduce((s,[,d])=>s+d.qty,0);
+  const linhasTodosProdutos = todosProdutosVendidos.length
+    ? todosProdutosVendidos.map(([n,d],i)=>`<tr><td>${i+1}</td><td>${n}</td><td style="text-align:right">${d.qty}</td><td style="text-align:right">Kz ${formatarValor(d.valor)}</td></tr>`).join('')
+    : '<tr><td colspan="4" style="text-align:center;color:#9CA3AF">Sem vendas registadas neste período</td></tr>';
+
   const itensValidade = [...vencidos.map(p=>({...p,_status:'vencido'})), ...aVencer.map(p=>({...p,_status:'avencer'}))].sort((a,b)=>new Date(a.validade)-new Date(b.validade));
 
-  // --- comparação com o mês anterior ---
-  const inicioAnt = new Date(anoSel, mesSel-2, 1);
+  // --- comparação com o período anterior (também de dia 6 a dia 5) ---
+  const inicioAnt = new Date(anoSel, mesSel-3, 6);
   const fimAnt = inicio;
   const receitaAnt = vendasAtivas().filter(v=>{const d=new Date(v.data);return d>=inicioAnt && d<fimAnt;}).reduce((s,v)=>s+v.total,0);
   let deltaHtml = '<span class="delta delta-neutro">sem dados do mês anterior</span>';
@@ -3464,6 +3810,7 @@ function exportarRelatorioMensal() {
             <div class="topo-eyebrow">Relatório Mensal</div>
             <div class="topo-titulo">${tituloMes}</div>
             <div class="topo-empresa">${farmacia}</div>
+            <div class="topo-endereco">${periodoLabel}</div>
             ${endereco ? `<div class="topo-endereco">${endereco}</div>` : ''}
           </div>
           ${logoTag}
@@ -3504,6 +3851,11 @@ function exportarRelatorioMensal() {
           <div class="sec-head"><span class="sec-icon">🏆</span><span class="sec-titulo">Produtos Mais Vendidos</span><span class="sec-linha"></span></div>
           <div style="margin-bottom:14px">${barrasTop}</div>
           <table><thead><tr><th></th><th>Produto</th><th class="num">Qtd. Vendida</th><th class="num">Receita</th></tr></thead><tbody>${linhasTop.replace(/<td>(\d+)<\/td>/g, (m,p1)=>`<td><span class="rank">${p1}</span></td>`)}</tbody></table>
+        </div>
+
+        <div class="sec">
+          <div class="sec-head"><span class="sec-icon">📋</span><span class="sec-titulo">Todos os Produtos Vendidos no Período</span><span class="sec-linha"></span></div>
+          <table><thead><tr><th></th><th>Produto</th><th class="num">Qtd. Vendida</th><th class="num">Receita</th></tr></thead><tbody>${linhasTodosProdutos.replace(/<td>(\d+)<\/td>/g, (m,p1)=>`<td><span class="rank">${p1}</span></td>`)}</tbody>${todosProdutosVendidos.length ? `<tfoot><tr style="font-weight:700"><td colspan="2">Total</td><td class="num">${totalUnidadesVendidas}</td><td class="num">Kz ${formatarValor(totalReceita)}</td></tr></tfoot>` : ''}</table>
         </div>
 
         <div class="sec">
@@ -4195,6 +4547,284 @@ function confirmarReposicao() {
   fecharModal('modal-reposicao');
   alert(`✅ Stock atualizado! ${totalProdutos} produto(s) repostos (+${totalUnidades} unidades, Kz ${formatarValor(totalCusto)} ao custo).`);
   renderAll();
+}
+
+// ============================================================
+// BALANÇO DE ESTOQUE (CONTAGEM FÍSICA) — Mensal / Trimestral / Anual
+// ============================================================
+
+// Alterna os campos de referência de período consoante o tipo escolhido
+function atualizarCamposPeriodoBalanco() {
+  const tipo = document.getElementById('balanco-tipo').value;
+  document.getElementById('balanco-campo-mes').style.display = (tipo === 'mensal') ? '' : 'none';
+  document.getElementById('balanco-campo-trimestre').style.display = (tipo === 'trimestral') ? '' : 'none';
+  document.getElementById('balanco-campo-ano-trimestre').style.display = (tipo === 'trimestral') ? '' : 'none';
+  document.getElementById('balanco-campo-ano').style.display = (tipo === 'anual') ? '' : 'none';
+}
+
+// Calcula o intervalo [inicio,fim] e um rótulo legível para o período escolhido
+function _calcularPeriodoBalanco() {
+  const tipo = document.getElementById('balanco-tipo').value;
+  const hoje = new Date();
+  if (tipo === 'mensal') {
+    const ref = document.getElementById('balanco-mes-ref').value || hoje.toISOString().slice(0,7);
+    const [ano, mes] = ref.split('-').map(Number);
+    const inicio = new Date(ano, mes-1, 1, 0,0,0,0);
+    const fim = new Date(ano, mes, 0, 23,59,59,999);
+    const nomesMes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    return { tipo, inicio, fim, label: `${nomesMes[mes-1]} de ${ano}` };
+  }
+  if (tipo === 'trimestral') {
+    const trimestre = parseInt(document.getElementById('balanco-trimestre-ref').value) || 1;
+    const ano = parseInt(document.getElementById('balanco-ano-trimestre-ref').value) || hoje.getFullYear();
+    const mesInicio = (trimestre-1)*3;
+    const inicio = new Date(ano, mesInicio, 1, 0,0,0,0);
+    const fim = new Date(ano, mesInicio+3, 0, 23,59,59,999);
+    return { tipo, inicio, fim, label: `${trimestre}º Trimestre de ${ano}` };
+  }
+  // anual
+  const ano = parseInt(document.getElementById('balanco-ano-ref').value) || hoje.getFullYear();
+  const inicio = new Date(ano, 0, 1, 0,0,0,0);
+  const fim = new Date(ano, 11, 31, 23,59,59,999);
+  return { tipo: 'anual', inicio, fim, label: `Ano de ${ano}` };
+}
+
+// Soma as unidades vendidas de cada produto dentro do período indicado
+function _vendidoPorProdutoNoPeriodo(inicio, fim) {
+  const mapa = {};
+  vendasAtivas().forEach(v => {
+    const d = new Date(v.data);
+    if (d < inicio || d > fim) return;
+    (v.itens || []).forEach(it => { mapa[it.id] = (mapa[it.id] || 0) + (it.qty || 0); });
+  });
+  return mapa;
+}
+
+function abrirModalBalanco() {
+  if (!document.getElementById('balanco-mes-ref').value) {
+    document.getElementById('balanco-mes-ref').value = new Date().toISOString().slice(0,7);
+  }
+  const periodo = _calcularPeriodoBalanco();
+  const vendidoMapa = _vendidoPorProdutoNoPeriodo(periodo.inicio, periodo.fim);
+  const produtos = [...db.produtos].sort((a,b) => a.nome.localeCompare(b.nome));
+
+  document.getElementById('modal-balanco-titulo').textContent = `📋 Balanço de Estoque — ${periodo.label}`;
+  const linhas = produtos.map(p => {
+    const vendido = vendidoMapa[p.id] || 0;
+    return `<tr data-id="${p.id}" data-nome="${p.nome.toLowerCase()}" data-categoria="${(p.categoria||'').toLowerCase()}" data-sistema="${p.qty}" data-precoc="${p.precoC||0}">
+      <td><strong>${p.nome}</strong><br><span style="font-size:11px;color:var(--cinza)">${p.categoria||'—'}</span></td>
+      <td class="num" style="text-align:right;font-family:var(--mono)">${p.qty}</td>
+      <td class="num" style="text-align:right;font-family:var(--mono)">${vendido}</td>
+      <td><input type="number" min="0" step="1" value="${p.qty}" class="input-balanco-fisico" style="width:90px;padding:4px 6px" oninput="_recalcularLinhaBalanco(this)"></td>
+      <td class="balanco-diferenca-item" style="text-align:right;font-family:var(--mono);font-weight:600">0</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('balanco-list-container').innerHTML = `
+    <table><thead><tr><th>Produto</th><th style="text-align:right">Stock Sistema</th><th style="text-align:right">Vendido no Período</th><th>Físico Contado</th><th style="text-align:right">Diferença</th></tr></thead>
+    <tbody>${linhas}</tbody></table>`;
+  document.getElementById('balanco-filtro').value = '';
+  _atualizarResumoLiveBalanco();
+  document.getElementById('modal-balanco').classList.add('open');
+}
+
+function _recalcularLinhaBalanco(input) {
+  const tr = input.closest('tr');
+  const sistema = parseFloat(tr.dataset.sistema) || 0;
+  const fisico = parseFloat(input.value) || 0;
+  const dif = fisico - sistema;
+  const celula = tr.querySelector('.balanco-diferenca-item');
+  celula.textContent = (dif > 0 ? '+' : '') + dif;
+  celula.style.color = dif === 0 ? 'var(--cinza)' : (dif > 0 ? 'var(--verde)' : 'var(--vermelho)');
+  _atualizarResumoLiveBalanco();
+}
+
+function _atualizarResumoLiveBalanco() {
+  let comDiferenca = 0, total = 0;
+  document.querySelectorAll('#balanco-list-container tr[data-id]').forEach(tr => {
+    total++;
+    const sistema = parseFloat(tr.dataset.sistema) || 0;
+    const fisico = parseFloat(tr.querySelector('.input-balanco-fisico').value) || 0;
+    if (fisico !== sistema) comDiferenca++;
+  });
+  const el = document.getElementById('balanco-resumo-live');
+  if (el) el.textContent = `${total} produto(s) · ${comDiferenca} com diferença até agora`;
+}
+
+function filtrarBalancoModal(valor) {
+  const termo = valor.toLowerCase().trim();
+  document.querySelectorAll('#balanco-list-container tr[data-id]').forEach(tr => {
+    const ok = !termo || tr.dataset.nome.includes(termo) || tr.dataset.categoria.includes(termo);
+    tr.style.display = ok ? '' : 'none';
+  });
+}
+
+function salvarBalanco() {
+  const periodo = _calcularPeriodoBalanco();
+  const linhas = document.querySelectorAll('#balanco-list-container tr[data-id]');
+  if (!linhas.length) { alert('Não há produtos para balancear.'); return; }
+
+  const itens = [];
+  linhas.forEach(tr => {
+    const prod = db.produtos.find(p => p.id === tr.dataset.id);
+    if (!prod) return;
+    const sistema = parseFloat(tr.dataset.sistema) || 0;
+    const fisico = parseFloat(tr.querySelector('.input-balanco-fisico').value) || 0;
+    const vendidoTxt = tr.children[2].textContent.trim();
+    const vendido = parseFloat(vendidoTxt) || 0;
+    const diferenca = fisico - sistema;
+    itens.push({
+      produtoId: prod.id, nome: prod.nome, categoria: prod.categoria || '',
+      stockSistema: sistema, vendidoPeriodo: vendido, fisico, diferenca,
+      precoC: prod.precoC || 0, precoV: prod.precoV || 0,
+      valorDiferencaCusto: diferenca * (prod.precoC || 0)
+    });
+  });
+
+  const comFalta = itens.filter(i => i.diferenca < 0);
+  const comSobra = itens.filter(i => i.diferenca > 0);
+  const certos = itens.filter(i => i.diferenca === 0);
+  const valorFalta = comFalta.reduce((s,i) => s + Math.abs(i.valorDiferencaCusto), 0);
+  const valorSobra = comSobra.reduce((s,i) => s + i.valorDiferencaCusto, 0);
+
+  const balanco = {
+    id: gerarId(), tipo: periodo.tipo, label: periodo.label,
+    periodoInicio: periodo.inicio.toISOString(), periodoFim: periodo.fim.toISOString(),
+    dataContagem: new Date().toISOString(), updatedAt: Date.now(),
+    itens, totalProdutos: itens.length, totalComFalta: comFalta.length, totalComSobra: comSobra.length,
+    totalCertos: certos.length, valorFalta, valorSobra, valorLiquido: valorSobra - valorFalta,
+    criadoPor: utilizadorAtual || '—'
+  };
+
+  db.balancos = db.balancos || [];
+  db.balancos.push(balanco);
+  registarLog(`Concluiu Balanço de Estoque (${periodo.label}): ${comFalta.length} produto(s) em falta, ${comSobra.length} a mais, Kz ${formatarValor(Math.abs(balanco.valorLiquido))} de ${balanco.valorLiquido<0?'quebra':'sobra'} líquida.`);
+  salvarDB();
+  fecharModal('modal-balanco');
+  renderBalancos();
+  mostrarResultadoBalanco(balanco.id);
+}
+
+function mostrarResultadoBalanco(id) {
+  const b = (db.balancos || []).find(x => x.id === id);
+  if (!b) return;
+  const comDif = b.itens.filter(i => i.diferenca !== 0).sort((a,b2) => a.diferenca - b2.diferenca);
+  const linhas = comDif.length
+    ? comDif.map(i => `<tr>
+        <td>${i.nome}</td>
+        <td style="text-align:right;font-family:var(--mono)">${i.stockSistema}</td>
+        <td style="text-align:right;font-family:var(--mono)">${i.vendidoPeriodo}</td>
+        <td style="text-align:right;font-family:var(--mono)">${i.fisico}</td>
+        <td style="text-align:right;font-family:var(--mono);font-weight:600;color:${i.diferenca<0?'var(--vermelho)':'var(--verde)'}">${i.diferenca>0?'+':''}${i.diferenca}</td>
+        <td style="text-align:right;font-family:var(--mono)">Kz ${formatarValor(Math.abs(i.valorDiferencaCusto))}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" class="vazio-msg" style="text-align:center;color:var(--cinza);padding:16px 0">🎉 Nenhuma diferença — stock físico bate certo com o sistema!</td></tr>';
+
+  document.getElementById('balanco-resultado-container').innerHTML = `
+    <div class="cards-grid" style="margin-bottom:18px">
+      <div class="card verde"><div class="card-label">Produtos Certos</div><div class="card-valor">${b.totalCertos}</div><div class="card-sub">de ${b.totalProdutos} conferidos</div></div>
+      <div class="card vermelho"><div class="card-label">Em Falta (Quebra)</div><div class="card-valor">${b.totalComFalta}</div><div class="card-sub">Kz ${formatarValor(b.valorFalta)} ao custo</div></div>
+      <div class="card amarelo"><div class="card-label">A Mais (Sobra)</div><div class="card-valor">${b.totalComSobra}</div><div class="card-sub">Kz ${formatarValor(b.valorSobra)} ao custo</div></div>
+      <div class="card ${b.valorLiquido<0?'vermelho':'azul'}"><div class="card-label">Resultado Líquido</div><div class="card-valor" style="font-size:18px">Kz ${formatarValor(Math.abs(b.valorLiquido))}</div><div class="card-sub">${b.valorLiquido<0?'quebra':'sobra'} ao custo</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--cinza);margin-bottom:10px"><strong>${b.label}</strong> · contagem feita em ${new Date(b.dataContagem).toLocaleString('pt-AO')} por ${obterNomePermissao(b.criadoPor)}</div>
+    <table><thead><tr><th>Produto</th><th style="text-align:right">Sistema</th><th style="text-align:right">Vendido</th><th style="text-align:right">Físico</th><th style="text-align:right">Diferença</th><th style="text-align:right">Valor</th></tr></thead><tbody>${linhas}</tbody></table>`;
+
+  document.getElementById('balanco-resultado-footer').innerHTML = `
+    <button class="btn btn-outline" onclick="fecharModal('modal-balanco-resultado')">Fechar</button>
+    <button class="btn btn-outline" onclick="exportarBalancoCSV('${b.id}')">⬇️ CSV / Excel</button>
+    <button class="btn btn-primary" onclick="exportarBalancoPDF('${b.id}')">📄 Exportar PDF</button>`;
+
+  document.getElementById('modal-balanco-resultado').classList.add('open');
+}
+
+function renderBalancos() {
+  const cont = document.getElementById('balancos-historico-container');
+  if (!cont) return;
+  const lista = [...(db.balancos || [])].sort((a,b) => new Date(b.dataContagem) - new Date(a.dataContagem));
+  if (!lista.length) { cont.innerHTML = '<div style="font-size:12px;color:var(--cinza)">Ainda não foi feito nenhum balanço de estoque.</div>'; return; }
+
+  const linhas = lista.map(b => {
+    const tipoLabel = b.tipo === 'mensal' ? 'Mensal' : b.tipo === 'trimestral' ? 'Trimestral' : 'Anual';
+    return `<tr>
+      <td>${b.label}</td>
+      <td><span style="font-size:11px;background:var(--azul-pale);color:var(--azul);padding:3px 8px;border-radius:20px;font-weight:500">${tipoLabel}</span></td>
+      <td>${new Date(b.dataContagem).toLocaleDateString('pt-AO')}</td>
+      <td style="text-align:right;font-family:var(--mono)">${b.totalComFalta}</td>
+      <td style="text-align:right;font-family:var(--mono)">${b.totalComSobra}</td>
+      <td style="text-align:right;font-family:var(--mono);font-weight:600;color:${b.valorLiquido<0?'var(--vermelho)':'var(--verde)'}">Kz ${formatarValor(Math.abs(b.valorLiquido))} ${b.valorLiquido<0?'(quebra)':'(sobra)'}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-outline btn-sm" onclick="mostrarResultadoBalanco('${b.id}')" title="Ver resultado">👁️</button>
+        <button class="btn btn-outline btn-sm" onclick="exportarBalancoPDF('${b.id}')" title="Exportar PDF">📄</button>
+        ${utilizadorAtual==='gerente' ? `<button class="btn btn-danger btn-sm" onclick="removerBalanco('${b.id}')" title="Apagar balanço">✕</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  cont.innerHTML = `<table><thead><tr><th>Período</th><th>Tipo</th><th>Data da Contagem</th><th style="text-align:right">Em Falta</th><th style="text-align:right">A Mais</th><th style="text-align:right">Resultado</th><th>Ações</th></tr></thead><tbody>${linhas}</tbody></table>`;
+}
+
+function removerBalanco(id) {
+  if (utilizadorAtual !== 'gerente') { alert('Só o Gerente pode apagar balanços.'); return; }
+  if (!confirm('Apagar este balanço de estoque? Esta ação não pode ser desfeita.')) return;
+  db.balancos = (db.balancos || []).filter(b => b.id !== id);
+  registarLog('Apagou um registo de Balanço de Estoque.');
+  salvarDB();
+  renderBalancos();
+}
+
+function exportarBalancoCSV(id) {
+  const b = (db.balancos || []).find(x => x.id === id);
+  if (!b) return;
+  const linhas = [['Produto', 'Categoria', 'Stock Sistema', 'Vendido no Período', 'Físico Contado', 'Diferença', 'Valor Diferença (Custo)']];
+  b.itens.forEach(i => {
+    linhas.push([i.nome, i.categoria, i.stockSistema, i.vendidoPeriodo, i.fisico, i.diferenca, i.valorDiferencaCusto.toFixed(2)]);
+  });
+  _downloadCSV(`balanco-${b.tipo}-${b.label.replace(/\s+/g,'-')}.csv`, linhas);
+}
+
+function exportarBalancoPDF(id) {
+  const b = (db.balancos || []).find(x => x.id === id);
+  if (!b) return;
+  const farmacia = db.config.farmacia || 'Farmácia Alvirosil';
+  const tipoLabel = b.tipo === 'mensal' ? 'Balanço Mensal' : b.tipo === 'trimestral' ? 'Balanço Trimestral' : 'Balanço Anual';
+  const comDif = [...b.itens].filter(i => i.diferenca !== 0).sort((a,c) => a.diferenca - c.diferenca);
+
+  const linhasDif = comDif.length
+    ? comDif.map(i => `<tr><td>${i.nome}</td><td>${i.categoria || '—'}</td><td class="num">${i.stockSistema}</td><td class="num">${i.vendidoPeriodo}</td><td class="num">${i.fisico}</td><td class="num">${i.diferenca>0?'+':''}${i.diferenca}</td><td class="num">Kz ${formatarValor(Math.abs(i.valorDiferencaCusto))}</td></tr>`).join('')
+    : '<tr><td colspan="7" class="vazio-msg">Nenhuma diferença — stock físico bate certo com o sistema</td></tr>';
+
+  const linhasTodos = [...b.itens].sort((a,c) => a.nome.localeCompare(c.nome))
+    .map(i => `<tr><td>${i.nome}</td><td class="num">${i.stockSistema}</td><td class="num">${i.vendidoPeriodo}</td><td class="num">${i.fisico}</td><td class="num">${i.diferenca>0?'+':''}${i.diferenca}</td></tr>`).join('');
+
+  const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>${tipoLabel} — ${b.label} — ${farmacia}</title>
+  <style>${_estiloRelatorioRapido()}</style></head><body>
+    <div class="acoes-impressao"><button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div>
+    <div class="page">
+      ${_cabecalhoRelatorioRapido(tipoLabel, b.label)}
+      <div class="corpo">
+        <div class="sec">
+          <div class="kpi-grid">
+            <div class="kpi"><div class="kpi-label">Produtos Certos</div><div class="kpi-valor">${b.totalCertos}</div><div class="kpi-sub">de ${b.totalProdutos} conferidos</div></div>
+            <div class="kpi vermelho"><div class="kpi-label">Em Falta (Quebra)</div><div class="kpi-valor">${b.totalComFalta}</div><div class="kpi-sub">Kz ${formatarValor(b.valorFalta)} ao custo</div></div>
+            <div class="kpi amarelo"><div class="kpi-label">A Mais (Sobra)</div><div class="kpi-valor">${b.totalComSobra}</div><div class="kpi-sub">Kz ${formatarValor(b.valorSobra)} ao custo</div></div>
+            <div class="kpi ${b.valorLiquido<0?'vermelho':'azul'}"><div class="kpi-label">Resultado Líquido</div><div class="kpi-valor">Kz ${formatarValor(Math.abs(b.valorLiquido))}</div><div class="kpi-sub">${b.valorLiquido<0?'quebra':'sobra'} ao custo</div></div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-head"><span class="sec-icon">⚠️</span><span class="sec-titulo">Produtos com Diferença</span><span class="sec-linha"></span></div>
+          <table><thead><tr><th>Produto</th><th>Categoria</th><th class="num">Sistema</th><th class="num">Vendido</th><th class="num">Físico</th><th class="num">Diferença</th><th class="num">Valor</th></tr></thead><tbody>${linhasDif}</tbody></table>
+        </div>
+        <div class="sec">
+          <div class="sec-head"><span class="sec-icon">📋</span><span class="sec-titulo">Contagem Completa (Todos os Produtos)</span><span class="sec-linha"></span></div>
+          <table><thead><tr><th>Produto</th><th class="num">Sistema</th><th class="num">Vendido</th><th class="num">Físico</th><th class="num">Diferença</th></tr></thead><tbody>${linhasTodos}</tbody></table>
+        </div>
+      </div>
+      <div class="rodape"><span><strong>${farmacia}</strong> · Contagem feita em ${new Date(b.dataContagem).toLocaleString('pt-AO')} por ${obterNomePermissao(b.criadoPor)}</span><span>FarmaGest</span></div>
+    </div>
+  </body></html>`;
+
+  _abrirJanelaRelatorio(html);
 }
 
 // MODAIS PRODUTO

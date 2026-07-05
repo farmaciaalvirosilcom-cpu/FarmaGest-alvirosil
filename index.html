@@ -699,6 +699,18 @@
       <div class="modal-body">
         <p id="pedido-fornecedor-aviso" style="font-size:12px;color:var(--cinza);margin-top:0"></p>
         <div id="pedido-fornecedor-lista" style="max-height:400px;overflow-y:auto"></div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed var(--borda)">
+          <div style="flex:2;min-width:160px">
+            <label style="font-size:11px;color:var(--cinza)">Produto</label>
+            <input id="pedido-manual-nome" list="pedido-manual-produtos" placeholder="Nome do produto" style="width:100%;padding:6px 8px">
+            <datalist id="pedido-manual-produtos"></datalist>
+          </div>
+          <div style="flex:0 0 90px">
+            <label style="font-size:11px;color:var(--cinza)">Quantidade</label>
+            <input id="pedido-manual-qtd" type="number" min="1" step="1" value="1" style="width:100%;padding:6px 8px">
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="adicionarItemPedidoManual()">➕ Adicionar</button>
+        </div>
         <div style="text-align:right;margin-top:10px;font-size:13px"><strong>Total de Unidades: <span id="pedido-fornecedor-total-unidades">0</span> &nbsp;·&nbsp; Custo Estimado: <span id="pedido-fornecedor-total-custo">Kz 0,00</span></strong></div>
       </div>
       <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
@@ -6262,19 +6274,64 @@ function abrirPedidoFornecedor(id) {
 
   const linhas = produtos.slice().sort((a,b) => a.nome.localeCompare(b.nome)).map(p => {
     const sugestao = modoTodos ? 0 : _sugestaoReposicao(p);
-    return `<div class="pedido-item-linha" data-id="${p.id}" data-nome="${p.nome.replace(/"/g,'&quot;')}" data-precoc="${p.precoC||0}" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--borda)">
-      <div style="flex:1;min-width:0">
-        <strong style="font-size:13px">${p.nome}</strong>
-        <div style="font-size:11px;color:var(--cinza)">Stock atual: ${p.qty} · Mínimo: ${p.min}</div>
-      </div>
-      <input type="number" min="0" step="1" value="${sugestao}" class="input-pedido-qtd" style="width:80px;padding:5px 8px" oninput="atualizarTotalPedidoFornecedor()">
-    </div>`;
+    return _linhaPedidoHTML(p.id, p.nome, p.precoC||0, sugestao, `Stock atual: ${p.qty} · Mínimo: ${p.min}`);
   }).join('');
 
   document.getElementById('pedido-fornecedor-lista').innerHTML = linhas;
   document.getElementById('modal-pedido-fornecedor').dataset.fornecedorId = f.id;
+
+  // Datalist com todos os produtos do stock, para adicionar manualmente qualquer item ao pedido
+  document.getElementById('pedido-manual-produtos').innerHTML = db.produtos
+    .slice().sort((a,b) => a.nome.localeCompare(b.nome))
+    .map(p => `<option value="${p.nome.replace(/"/g,'&quot;')}">`).join('');
+  document.getElementById('pedido-manual-nome').value = '';
+  document.getElementById('pedido-manual-qtd').value = 1;
+
   atualizarTotalPedidoFornecedor();
   document.getElementById('modal-pedido-fornecedor').classList.add('open');
+}
+
+// Gera o HTML de uma linha de item do pedido (usado tanto para itens automáticos como manuais)
+function _linhaPedidoHTML(id, nome, precoC, qtd, infoExtra) {
+  return `<div class="pedido-item-linha" data-id="${id||''}" data-nome="${nome.replace(/"/g,'&quot;')}" data-precoc="${precoC||0}" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--borda)">
+      <div style="flex:1;min-width:0">
+        <strong style="font-size:13px">${nome}</strong>
+        ${infoExtra ? `<div style="font-size:11px;color:var(--cinza)">${infoExtra}</div>` : ''}
+      </div>
+      <input type="number" min="0" step="1" value="${qtd}" class="input-pedido-qtd" style="width:80px;padding:5px 8px" oninput="atualizarTotalPedidoFornecedor()">
+      <button class="btn btn-outline btn-sm" onclick="this.closest('.pedido-item-linha').remove(); atualizarTotalPedidoFornecedor()" title="Remover">🗑️</button>
+    </div>`;
+}
+
+// Adiciona um item ao pedido manualmente (a partir do campo de texto + quantidade no fundo do modal).
+// Se o nome corresponder a um produto do stock, usa o preço de custo e mostra o stock atual;
+// caso contrário, adiciona como item livre (útil para produtos ainda não cadastrados).
+function adicionarItemPedidoManual() {
+  const inputNome = document.getElementById('pedido-manual-nome');
+  const inputQtd = document.getElementById('pedido-manual-qtd');
+  const nome = inputNome.value.trim();
+  const qtd = parseFloat(inputQtd.value) || 1;
+  if (!nome) { alert('Indica o nome do produto a adicionar.'); return; }
+
+  // Já existe uma linha com este nome? Soma a quantidade em vez de duplicar.
+  const existente = Array.from(document.querySelectorAll('#pedido-fornecedor-lista .pedido-item-linha'))
+    .find(linha => linha.dataset.nome.toLowerCase() === nome.toLowerCase());
+  if (existente) {
+    const campoQtd = existente.querySelector('.input-pedido-qtd');
+    campoQtd.value = (parseFloat(campoQtd.value) || 0) + qtd;
+    atualizarTotalPedidoFornecedor();
+    inputNome.value = ''; inputQtd.value = 1; inputNome.focus();
+    return;
+  }
+
+  const produto = db.produtos.find(p => p.nome.toLowerCase() === nome.toLowerCase());
+  const infoExtra = produto ? `Stock atual: ${produto.qty} · Mínimo: ${produto.min}` : 'Produto adicionado manualmente';
+  const div = document.createElement('div');
+  div.innerHTML = _linhaPedidoHTML(produto ? produto.id : '', produto ? produto.nome : nome, produto ? produto.precoC||0 : 0, qtd, infoExtra);
+  document.getElementById('pedido-fornecedor-lista').appendChild(div.firstElementChild);
+
+  atualizarTotalPedidoFornecedor();
+  inputNome.value = ''; inputQtd.value = 1; inputNome.focus();
 }
 
 function atualizarTotalPedidoFornecedor() {

@@ -800,7 +800,7 @@
           <button class="btn btn-danger" onclick="fecharContasAte()">🔒 Fechar Contas</button>
           <button class="btn btn-outline" onclick="reabrirContas()">🔓 Reabrir</button>
         </div>
-        <span style="font-size:12px;color:var(--cinza)">🤖 A partir do dia 7 de cada mês, o sistema fecha automaticamente as contas do período anterior (até dia 5) sozinho, sem precisares de fazer nada. Usa os botões abaixo só se quiseres fechar mais cedo (antes do dia 7) ou reabrir por algum motivo.<br>🔓 Reabrir: escolhe a data do dia mais antigo que precisas de lançar/editar e clica "Reabrir" — esse dia e todos os posteriores ficam livres para lançamentos. Deixa o campo vazio para reabrir todo o histórico. Só o Gerente pode reabrir.</span>
+        <span style="font-size:12px;color:var(--cinza)">🔒 O fecho de contas agora é sempre manual — o sistema não fecha nada sozinho. Usa o botão abaixo quando quiseres fechar (ex: depois de conferires as vendas do mês).<br>🔓 Reabrir: escolhe a data do dia mais antigo que precisas de lançar/editar e clica "Reabrir" — esse dia e todos os posteriores ficam livres para lançamentos. Deixa o campo vazio para reabrir todo o histórico. Só o Gerente pode reabrir.</span>
       </div>
     </div>
     <div class="painel">
@@ -3206,7 +3206,7 @@ function navegar(sec, btn) {
 
 // ============ RENDER ============
 function renderAll() {
-  autoFecharContas();
+  // Fecho automático desativado — o fecho de contas passa a ser sempre manual (ver fecharContasAte()).
   renderBanners(); renderDashboard(); renderStock(); renderValidades(); renderPDV(); renderVendas(); renderDespesas(); renderContasReceber(); renderContasPagar(); renderFornecedores(); renderRelatorios();
   atualizarBadgeAprovacoes();
   verificarAlertaStockCritico();

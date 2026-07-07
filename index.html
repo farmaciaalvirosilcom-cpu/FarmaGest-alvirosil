@@ -800,7 +800,7 @@
           <button class="btn btn-danger" onclick="fecharContasAte()">🔒 Fechar Contas</button>
           <button class="btn btn-outline" onclick="reabrirContas()">🔓 Reabrir</button>
         </div>
-        <span style="font-size:12px;color:var(--cinza)">🤖 A partir do dia 7 de cada mês, o sistema fecha automaticamente as contas do período anterior (até dia 5) sozinho, sem precisares de fazer nada. Usa os botões abaixo só se quiseres fechar mais cedo (antes do dia 7) ou reabrir por algum motivo.<br>🔓 Reabrir: escolhe uma data e clica "Reabrir" para recuar o fecho só até essa data (reabre apenas as vendas mais recentes). Deixa o campo vazio para reabrir todo o histórico. Só o Gerente pode reabrir.</span>
+        <span style="font-size:12px;color:var(--cinza)">🤖 A partir do dia 7 de cada mês, o sistema fecha automaticamente as contas do período anterior (até dia 5) sozinho, sem precisares de fazer nada. Usa os botões abaixo só se quiseres fechar mais cedo (antes do dia 7) ou reabrir por algum motivo.<br>🔓 Reabrir: escolhe a data do dia mais antigo que precisas de lançar/editar e clica "Reabrir" — esse dia e todos os posteriores ficam livres para lançamentos. Deixa o campo vazio para reabrir todo o histórico. Só o Gerente pode reabrir.</span>
       </div>
     </div>
     <div class="painel">
@@ -4199,6 +4199,7 @@ function dataFechada(dataISO) {
 // cujo prazo de tolerância (até dia 7) já passou. Nunca recua um fecho já feito.
 function autoFecharContas() {
   if (!db.config) db.config = {};
+  if (db.config.reabertoManual) return; // Reabertura manual do Gerente tem prioridade: não fechar sozinho até ele decidir fechar de novo.
   const hoje = new Date();
   let anoP, mesP;
   if (hoje.getDate() >= 7) { anoP = hoje.getFullYear(); mesP = hoje.getMonth()+1; }
@@ -4242,6 +4243,7 @@ function fecharContasAte() {
   db.config.fechoAte = valor;
   db.config.fechoPor = utilizadorAtual;
   db.config.fechoEm = new Date().toISOString();
+  delete db.config.reabertoManual;
   salvarDB();
   registarLog(`Fechou as contas até ${new Date(valor+'T00:00:00').toLocaleDateString('pt-AO')} (fecho anterior: ${anteriorTxt})`);
   renderFechoMes();
@@ -4263,14 +4265,21 @@ function reabrirContas() {
     delete db.config.fechoAte;
     delete db.config.fechoPor;
     delete db.config.fechoEm;
+    db.config.reabertoManual = true;
   } else {
     if (valor >= fechoAtualStr) { alert(`Para reabrir, a data tem de ser anterior ao fecho atual (${fechoAtualTxt}). Para avançar o fecho, usa o botão "Fechar Contas".`); return; }
+    // O campo indica o PRIMEIRO dia que o utilizador quer reabrir (inclusive).
+    // Como dataFechada() considera fechado tudo o que for <= fechoAte, o novo fechoAte
+    // tem de ficar no dia ANTERIOR ao escolhido, para que o próprio dia escolhido fique aberto.
+    const [ano,mes,dia]=valor.split('-').map(Number);
+    const novoFecho=new Date(ano,mes-1,dia-1);
+    const novoFechoStr=novoFecho.getFullYear()+'-'+String(novoFecho.getMonth()+1).padStart(2,'0')+'-'+String(novoFecho.getDate()).padStart(2,'0');
     const novaTxt = new Date(valor+'T00:00:00').toLocaleDateString('pt-AO');
-    if (!confirm(`Vais recuar o fecho de ${fechoAtualTxt} para ${novaTxt}.\nAs vendas com data entre ${novaTxt} (exclusive) e ${fechoAtualTxt} passam a poder ser editadas ou canceladas de novo. O resto do histórico (até ${novaTxt}) continua fechado.\n\nConfirmas?`)) return;
-    registarLog(`Recuou o fecho de ${fechoAtualTxt} para ${novaTxt} (reabertura parcial)`);
-    db.config.fechoAte = valor;
-    db.config.fechoPor = utilizadorAtual;
-    db.config.fechoEm = new Date().toISOString();
+    if (!confirm(`Vais reabrir as contas a partir de ${novaTxt} (inclusive).\nAs vendas com data igual ou posterior a ${novaTxt} passam a poder ser editadas, canceladas, ou receber novos lançamentos. O histórico anterior a ${novaTxt} continua fechado.\n\nConfirmas?`)) return;
+    registarLog(`Reabriu as contas a partir de ${novaTxt} (fecho anterior era até ${fechoAtualTxt})`);
+    if (novoFecho < new Date(2000,0,1)) { delete db.config.fechoAte; delete db.config.fechoPor; delete db.config.fechoEm; }
+    else { db.config.fechoAte = novoFechoStr; db.config.fechoPor = utilizadorAtual; db.config.fechoEm = new Date().toISOString(); }
+    db.config.reabertoManual = true;
   }
   salvarDB();
   document.getElementById('fecho-data-ate').value = '';

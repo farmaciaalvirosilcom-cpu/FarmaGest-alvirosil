@@ -882,7 +882,7 @@
     <div class="painel">
       <div class="painel-header"><span class="painel-titulo">📋 Balanço de Estoque (Contagem Física)</span></div>
       <div class="painel-body" style="display:flex;flex-direction:column;gap:14px">
-        <span style="font-size:12px;color:var(--cinza)">Insere a contagem física dos produtos que sobraram no armazém/prateleira e compara automaticamente com as vendas do período e com o stock atual do sistema. No final obténs o resultado: produtos certos, em falta (quebra) ou a mais (sobra), e o valor dessa diferença ao preço de custo.</span>
+        <span style="font-size:12px;color:var(--cinza)">Insere a contagem física dos produtos que sobraram no armazém/prateleira e compara automaticamente com as vendas do período e com o stock atual do sistema. No final obténs o resultado: produtos certos, em falta (quebra) ou a mais (sobra), e o valor dessa diferença ao preço de custo. Ao concluir, o stock do sistema é ajustado automaticamente para bater com a contagem física.</span>
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
           <div class="form-group" style="margin:0">
             <label>Tipo de Balanço</label>
@@ -5473,6 +5473,13 @@ function salvarBalanco() {
   const valorFalta = comFalta.reduce((s,i) => s + Math.abs(i.valorDiferencaCusto), 0);
   const valorSobra = comSobra.reduce((s,i) => s + i.valorDiferencaCusto, 0);
 
+  // Ajusta o stock do sistema para bater com a contagem física (a diferença fica registada como quebra/sobra no histórico do balanço).
+  itens.forEach(i => {
+    if (i.diferenca === 0) return;
+    const prod = db.produtos.find(p => p.id === i.produtoId);
+    if (prod) prod.qty = i.fisico;
+  });
+
   const balanco = {
     id: gerarId(), tipo: periodo.tipo, label: periodo.label,
     periodoInicio: periodo.inicio.toISOString(), periodoFim: periodo.fim.toISOString(),
@@ -5484,7 +5491,7 @@ function salvarBalanco() {
 
   db.balancos = db.balancos || [];
   db.balancos.push(balanco);
-  registarLog(`Concluiu Balanço de Estoque (${periodo.label}): ${comFalta.length} produto(s) em falta, ${comSobra.length} a mais, Kz ${formatarValor(Math.abs(balanco.valorLiquido))} de ${balanco.valorLiquido<0?'quebra':'sobra'} líquida.`);
+  registarLog(`Concluiu Balanço de Estoque (${periodo.label}): ${comFalta.length} produto(s) em falta, ${comSobra.length} a mais, Kz ${formatarValor(Math.abs(balanco.valorLiquido))} de ${balanco.valorLiquido<0?'quebra':'sobra'} líquida. Stock do sistema ajustado para bater com a contagem física.`);
   salvarDB();
   fecharModal('modal-balanco');
   renderBalancos();

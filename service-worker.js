@@ -2,7 +2,7 @@
 // Necessário para a app ser instalável como PWA.
 // Faz cache básica do shell da aplicação e funciona offline para o essencial.
 
-const CACHE_NAME = 'farmagest-cache-v1';
+const CACHE_NAME = 'farmagest-cache-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -35,7 +35,7 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'no-store' })
       .then(response => {
         const responseClone = response.clone();
         caches.open(CACHE_NAME).then(cache => {

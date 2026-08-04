@@ -127,6 +127,7 @@ function fazerLogout() {
   document.getElementById('login-identificador').value = '';
   document.getElementById('login-senha').value = '';
   document.getElementById('login-erro').classList.remove('visivel');
+  verificarPrimeiroAcesso();
   navegar('dashboard', document.querySelector('nav button'));
 }
 
@@ -1042,6 +1043,63 @@ let filtroStock = '';
 let filtroDonoStock = '';
 
 // Verificar sessão ao carregar — chamado depois de carregarDB(), pois depende de db.funcionarios
+function existeAlgumaContaConfigurada() {
+  return (db.funcionarios||[]).some(f => f.conta && f.senha);
+}
+
+function verificarPrimeiroAcesso() {
+  const formNormal = document.getElementById('login-form-normal');
+  const formSetup = document.getElementById('login-form-setup');
+  const sub = document.getElementById('login-sub');
+  if (!formNormal || !formSetup) return;
+  if (existeAlgumaContaConfigurada()) {
+    formNormal.style.display = '';
+    formSetup.style.display = 'none';
+    if (sub) sub.textContent = 'Introduza as suas credenciais para aceder';
+  } else {
+    formNormal.style.display = 'none';
+    formSetup.style.display = '';
+    if (sub) sub.textContent = 'Primeira utilização — configuração inicial';
+  }
+}
+
+function criarContaGerenteInicial() {
+  const nome = document.getElementById('setup-nome').value.trim();
+  const idInput = document.getElementById('setup-identificador').value.trim();
+  const senha = document.getElementById('setup-senha').value;
+  const conf = document.getElementById('setup-senha-confirmar').value;
+  const erro = document.getElementById('setup-erro');
+  erro.classList.remove('visivel');
+
+  if (existeAlgumaContaConfigurada()) { erro.textContent = 'Já existe pelo menos uma conta configurada — usa o ecrã de login normal.'; erro.classList.add('visivel'); verificarPrimeiroAcesso(); return; }
+  if (!nome) { erro.textContent = 'Introduz o teu nome.'; erro.classList.add('visivel'); return; }
+  if (!idInput) { erro.textContent = 'Introduz o teu email ou telefone.'; erro.classList.add('visivel'); return; }
+  if (!senha || senha.length < 4) { erro.textContent = 'A senha deve ter pelo menos 4 caracteres.'; erro.classList.add('visivel'); return; }
+  if (senha !== conf) { erro.textContent = 'As senhas não coincidem.'; erro.classList.add('visivel'); return; }
+
+  const alvoEmail = idInput.toLowerCase().includes('@');
+  const id = gerarId();
+  const f = {
+    id, nome, cargo: 'Gerente', estado: 'ativo',
+    bi: '', telefone: alvoEmail ? '' : idInput, email: alvoEmail ? idInput : '',
+    admissao: new Date().toISOString().slice(0,10), salario: 0,
+    conta: 'gerente', senha: hashSenha(id, senha),
+    habilitacoes: '', endereco: '', notas: 'Conta criada na configuração inicial do sistema.', histSalarial: []
+  };
+  db.funcionarios = db.funcionarios || [];
+  db.funcionarios.push(f);
+  salvarDB();
+  registarLog('Criou a conta de Gerente inicial (' + nome + ')');
+
+  utilizadorAtual = f.conta;
+  funcionarioLogadoId = f.id;
+  sessionStorage.setItem(SESS_KEY, f.id);
+  document.getElementById('tela-login').classList.add('oculto');
+  document.getElementById('user-badge').textContent = (PERFIS[f.conta]?.emoji || '👤') + ' ' + f.nome;
+  aplicarPermissoes();
+  renderAll();
+}
+
 function restaurarSessao() {
   const sessaoId = sessionStorage.getItem(SESS_KEY);
   if (!sessaoId) return;
@@ -1341,6 +1399,7 @@ function gerarId() { return Date.now().toString(36) + Math.random().toString(36)
 
 carregarDB();
 restaurarSessao();
+verificarPrimeiroAcesso();
 
 // Versão PRÉ-CARREGADA: Os 249 produtos são injectados automaticamente
 // no primeiro arranque, sem precisar importar XLSX nem usar o botão de importação.

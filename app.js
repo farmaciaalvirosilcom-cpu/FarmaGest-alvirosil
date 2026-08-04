@@ -1,12 +1,11 @@
 // ============ UTILIZADORES ============
-const USERS_KEY = 'farmagest_users';
 const SESS_KEY  = 'farmagest_sessao';
 
 const PERFIS = {
-  gerente:         { nome: 'Gerente',               emoji: '👤', avatar: 'ua-gerente',        senhaDefault: 'admin123' },
-  gerente_admin:   { nome: 'Gerente Administrativo', emoji: '📋', avatar: 'ua-gerente-admin', senhaDefault: 'admin456' },
-  farmaceutico:    { nome: 'Farmacêutico',         emoji: '💊', avatar: 'ua-farmaceutico',   senhaDefault: 'farma123' },
-  caixa:           { nome: 'Caixa',                emoji: '🛒', avatar: 'ua-caixa',          senhaDefault: 'caixa123' }
+  gerente:         { nome: 'Gerente',               emoji: '👤', avatar: 'ua-gerente'        },
+  gerente_admin:   { nome: 'Gerente Administrativo', emoji: '📋', avatar: 'ua-gerente-admin' },
+  farmaceutico:    { nome: 'Farmacêutico',         emoji: '💊', avatar: 'ua-farmaceutico'   },
+  caixa:           { nome: 'Caixa',                emoji: '🛒', avatar: 'ua-caixa'          }
 };
 
 const PERMISSOES = {
@@ -17,7 +16,8 @@ const PERMISSOES = {
 };
 
 let utilizadorAtual = null;
-let editandoSenhaUser = null;
+let funcionarioLogadoId = null;
+function funcionarioLogado() { return (db.funcionarios||[]).find(f => f.id === funcionarioLogadoId) || null; }
 
 // ============ HASH DE SENHAS (SHA-256, síncrono, sem dependências) ============
 // As senhas nunca são guardadas em texto simples — só o hash fica no localStorage.
@@ -85,55 +85,34 @@ function sha256Hex(mensagemOriginal) {
 // Salga com o nome do perfil, para que a mesma senha em duas contas não gere o mesmo hash.
 function hashSenha(userKey, senhaTexto) { return sha256Hex('farmagest::' + userKey + '::' + senhaTexto); }
 
-function carregarUsers() {
-  const raw = localStorage.getItem(USERS_KEY);
-  if (raw) {
-    try {
-      const dados = JSON.parse(raw);
-      let alterado = false;
-      // Migração: formato antigo era {gerente: "senha"} -> novo é {gerente: {senha, nomeReal}}
-      Object.keys(dados).forEach(k => {
-        if (typeof dados[k] === 'string') dados[k] = { senha: dados[k], nomeReal: '' };
-        if (dados[k].nomeReal === undefined) dados[k].nomeReal = '';
-        // Migração: senha ainda em texto simples -> hash (nunca voltamos a guardar em claro)
-        if (!dados[k].hash) {
-          dados[k].senha = hashSenha(k, dados[k].senha);
-          dados[k].hash = true;
-          alterado = true;
-        }
-      });
-      // Preencher perfis novos (ex: gerente_admin) que ainda não existem neste dispositivo
-      Object.keys(PERFIS).forEach(k => {
-        if (!dados[k]) { dados[k] = { senha: hashSenha(k, PERFIS[k].senhaDefault), nomeReal: '', hash: true }; alterado = true; }
-      });
-      if (alterado) localStorage.setItem(USERS_KEY, JSON.stringify(dados));
-      return dados;
-    } catch(e) {}
-  }
-  const padrao = {};
-  Object.keys(PERFIS).forEach(k => { padrao[k] = { senha: hashSenha(k, PERFIS[k].senhaDefault), nomeReal: '', hash: true }; });
-  localStorage.setItem(USERS_KEY, JSON.stringify(padrao));
-  return padrao;
-}
-
-function nomeExibicao(userKey) {
-  const users = carregarUsers();
-  const real = users[userKey] && users[userKey].nomeReal;
-  return real ? `${PERFIS[userKey].nome} — ${real}` : PERFIS[userKey].nome;
+// Devolve o nome da pessoa com sessão iniciada (ou o nome do perfil, como recurso de segurança).
+function identidadeAtual() {
+  const f = funcionarioLogado();
+  if (f) return f.nome;
+  return utilizadorAtual ? (PERFIS[utilizadorAtual]?.nome || utilizadorAtual) : null;
 }
 
 function fazerLogin() {
-  const user = document.getElementById('login-user').value;
+  const idInput = document.getElementById('login-identificador').value.trim();
   const senha = document.getElementById('login-senha').value;
   const erro = document.getElementById('login-erro');
   erro.classList.remove('visivel');
-  if (!user) { erro.textContent = 'Seleccione um perfil.'; erro.classList.add('visivel'); return; }
-  const users = carregarUsers();
-  if (users[user].senha !== hashSenha(user, senha)) { erro.textContent = 'Senha incorrecta. Tente novamente.'; erro.classList.add('visivel'); return; }
-  utilizadorAtual = user;
-  sessionStorage.setItem(SESS_KEY, user);
+  if (!idInput) { erro.textContent = 'Introduza o seu email ou número de telefone.'; erro.classList.add('visivel'); return; }
+  const alvoEmail = idInput.toLowerCase();
+  const alvoTel = limparNumeroTelefone(idInput);
+  const f = (db.funcionarios||[]).find(x => x.conta && (
+    (x.email && x.email.trim().toLowerCase() === alvoEmail) ||
+    (alvoTel && x.telefone && limparNumeroTelefone(x.telefone) === alvoTel)
+  ));
+  if (!f || !f.senha) { erro.textContent = 'Utilizador não encontrado.'; erro.classList.add('visivel'); return; }
+  if ((f.estado || 'ativo') === 'inativo') { erro.textContent = 'Esta conta está inactiva. Contacte o Gerente.'; erro.classList.add('visivel'); return; }
+  if (f.senha !== hashSenha(f.id, senha)) { erro.textContent = 'Senha incorrecta. Tente novamente.'; erro.classList.add('visivel'); return; }
+  utilizadorAtual = f.conta;
+  funcionarioLogadoId = f.id;
+  sessionStorage.setItem(SESS_KEY, f.id);
   document.getElementById('tela-login').classList.add('oculto');
-  document.getElementById('user-badge').textContent = PERFIS[user].emoji + ' ' + nomeExibicao(user);
+  document.getElementById('user-badge').textContent = (PERFIS[f.conta]?.emoji || '👤') + ' ' + f.nome;
+  document.getElementById('login-identificador').value = '';
   document.getElementById('login-senha').value = '';
   aplicarPermissoes();
   renderAll();
@@ -142,9 +121,10 @@ function fazerLogin() {
 function fazerLogout() {
   if (!confirm('Confirma que deseja sair?')) return;
   utilizadorAtual = null;
+  funcionarioLogadoId = null;
   sessionStorage.removeItem(SESS_KEY);
   document.getElementById('tela-login').classList.remove('oculto');
-  document.getElementById('login-user').value = '';
+  document.getElementById('login-identificador').value = '';
   document.getElementById('login-senha').value = '';
   document.getElementById('login-erro').classList.remove('visivel');
   navegar('dashboard', document.querySelector('nav button'));
@@ -201,9 +181,8 @@ function atualizarSaudacao() {
   let periodo = 'Boa noite';
   if (hora >= 5 && hora < 12) periodo = 'Bom dia';
   else if (hora >= 12 && hora < 19) periodo = 'Boa tarde';
-  const users = carregarUsers();
-  const real = users[utilizadorAtual] && users[utilizadorAtual].nomeReal;
-  el.textContent = `${periodo}, ${real || PERFIS[utilizadorAtual].nome}`;
+  const f = funcionarioLogado();
+  el.textContent = `${periodo}, ${f ? f.nome : PERFIS[utilizadorAtual].nome}`;
   const dataEl = document.getElementById('dash-data');
   if (dataEl) {
     const agora = new Date();
@@ -216,55 +195,6 @@ function podeEditar() { return utilizadorAtual && PERMISSOES[utilizadorAtual].ed
 function podeNovoProduto() { return utilizadorAtual && PERMISSOES[utilizadorAtual].novoProduto; }
 function obterPermissaesAtual() { return utilizadorAtual || 'anonimo'; }
 function obterNomePermissao(user) { return PERFIS[user]?.nome || user; }
-
-// Gestão de senhas (config)
-function renderConfigUsers() {
-  const users = carregarUsers();
-  document.getElementById('lista-users').innerHTML = Object.keys(PERFIS).map(k => `
-    <div class="user-card">
-      <div class="user-card-info">
-        <div class="user-avatar ${PERFIS[k].avatar}">${PERFIS[k].emoji}</div>
-        <div>
-          <div class="user-card-nome">${PERFIS[k].nome}${users[k].nomeReal ? ' — '+users[k].nomeReal : ''}</div>
-          <div class="user-card-role">Utilizador: <strong>${k}</strong> · Senha: ••••••••</div>
-        </div>
-      </div>
-      <button class="btn btn-outline btn-sm" onclick="abrirModalSenha('${k}')">✏️ Editar</button>
-    </div>
-  `).join('');
-}
-
-function abrirModalSenha(user) {
-  editandoSenhaUser = user;
-  const users = carregarUsers();
-  document.getElementById('modal-senha-titulo').textContent = 'Editar · ' + PERFIS[user].nome;
-  document.getElementById('nome-real').value = users[user].nomeReal || '';
-  document.getElementById('nova-senha').value = '';
-  document.getElementById('confirmar-senha').value = '';
-  document.getElementById('senha-erro').classList.remove('visivel');
-  document.getElementById('modal-senha').classList.add('open');
-}
-
-function salvarSenha() {
-  const nomeReal = document.getElementById('nome-real').value.trim();
-  const nova = document.getElementById('nova-senha').value;
-  const conf = document.getElementById('confirmar-senha').value;
-  const erro = document.getElementById('senha-erro');
-  erro.classList.remove('visivel');
-  const users = carregarUsers();
-  if (nova || conf) {
-    if (nova.length < 4) { erro.textContent = 'A senha deve ter pelo menos 4 caracteres.'; erro.classList.add('visivel'); return; }
-    if (nova !== conf) { erro.textContent = 'As senhas não coincidem.'; erro.classList.add('visivel'); return; }
-    users[editandoSenhaUser].senha = hashSenha(editandoSenhaUser, nova);
-    users[editandoSenhaUser].hash = true;
-  }
-  users[editandoSenhaUser].nomeReal = nomeReal;
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  fecharModal('modal-senha');
-  renderConfigUsers();
-  if (utilizadorAtual === editandoSenhaUser) { document.getElementById('user-badge').textContent = PERFIS[utilizadorAtual].emoji + ' ' + nomeExibicao(utilizadorAtual); atualizarSaudacao(); }
-  alert('Dados de ' + PERFIS[editandoSenhaUser].nome + ' actualizados!');
-}
 
 // ============ FUNCIONÁRIOS ============
 function formatarValorKz(n) { return Math.round(n||0).toLocaleString('pt-PT'); }
@@ -468,6 +398,7 @@ function renderFuncionarios() {
 
   lista.innerHTML = lista_f.map(f => {
     const contaInfo = f.conta ? (PERFIS[f.conta] ? PERFIS[f.conta].emoji + ' ' + PERFIS[f.conta].nome : '') : 'Sem conta de acesso';
+    const loginIncompleto = f.conta && (!(f.telefone || f.email) || !f.senha);
     const admissaoFmt = f.admissao ? new Date(f.admissao+'T00:00:00').toLocaleDateString('pt-PT') : '—';
     const estado = f.estado || 'ativo';
     const avatarHtml = f.foto
@@ -485,7 +416,7 @@ function renderFuncionarios() {
           </div>
           <div class="user-card-role">${f.cargo || '—'} · Admissão: ${admissaoFmt}</div>
           <div class="user-card-role">${f.telefone ? '📞 '+f.telefone : ''}${f.email ? (f.telefone?' · ':'')+f.email : ''}${(!f.telefone&&!f.email)?'Sem contacto':''}</div>
-          <div class="user-card-role" style="margin-top:2px">${contaInfo}${habLabel?' · 🎓 '+habLabel:''}</div>
+          <div class="user-card-role" style="margin-top:2px">${contaInfo}${habLabel?' · 🎓 '+habLabel:''}${loginIncompleto?' · <span style="color:var(--vermelho)">⚠️ Faltam credenciais de login (email/telefone + senha)</span>':''}</div>
         </div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
@@ -516,21 +447,33 @@ function abrirModalFuncionario(id) {
     document.getElementById('func-habilitacoes').value = f.habilitacoes || '';
     document.getElementById('func-endereco').value = f.endereco || '';
     document.getElementById('func-notas').value = f.notas || '';
+    document.getElementById('func-senha').value = '';
+    document.getElementById('func-senha-confirmar').value = '';
+    document.getElementById('func-senha').placeholder = f.senha ? 'Deixe em branco para manter a senha atual' : 'Mín. 4 caracteres';
     _aplicarFotoExistente(f.foto || null);
     _aplicarCertExistente(f.cert || null, f.certNome || '');
     _carregarHistSalarial(f.histSalarial || []);
   } else {
     document.getElementById('modal-funcionario-titulo').textContent = '🧑‍💼 Novo Funcionário';
-    ['func-nome','func-cargo','func-bi','func-telefone','func-email','func-admissao','func-salario','func-endereco','func-notas'].forEach(id2 => document.getElementById(id2).value = '');
+    ['func-nome','func-cargo','func-bi','func-telefone','func-email','func-admissao','func-salario','func-endereco','func-notas','func-senha','func-senha-confirmar'].forEach(id2 => document.getElementById(id2).value = '');
     document.getElementById('func-conta').value = '';
     document.getElementById('func-estado').value = 'ativo';
     document.getElementById('func-habilitacoes').value = '';
+    document.getElementById('func-senha').placeholder = 'Mín. 4 caracteres';
     _resetarCampoFoto();
     _resetarCampoCert();
     _resetarHistSalarial();
   }
+  atualizarCamposLoginFuncionario();
   setTimeout(atualizarAvatarIniciais, 50);
   document.getElementById('modal-funcionario').classList.add('open');
+}
+
+function atualizarCamposLoginFuncionario() {
+  const temConta = !!document.getElementById('func-conta').value;
+  document.getElementById('func-login-aviso').style.display = temConta ? '' : 'none';
+  document.getElementById('func-senha-grupo1').style.display = temConta ? '' : 'none';
+  document.getElementById('func-senha-grupo2').style.display = temConta ? '' : 'none';
 }
 
 function salvarFuncionario() {
@@ -540,17 +483,41 @@ function salvarFuncionario() {
   erro.classList.remove('visivel');
   if (!nome || !cargo) { erro.textContent = 'Nome e Cargo são obrigatórios.'; erro.classList.add('visivel'); return; }
 
+  const conta = document.getElementById('func-conta').value;
+  const telefone = document.getElementById('func-telefone').value.trim();
+  const email = document.getElementById('func-email').value.trim();
+  const novaSenha = document.getElementById('func-senha').value;
+  const confSenha = document.getElementById('func-senha-confirmar').value;
+  const fAtual = editandoFuncionarioId ? db.funcionarios.find(x => x.id === editandoFuncionarioId) : null;
+
+  if (conta) {
+    if (!telefone && !email) { erro.textContent = 'Para dar acesso ao sistema, preencha o Telefone ou o E-mail (usados para entrar).'; erro.classList.add('visivel'); return; }
+    const emailAlvo = email.toLowerCase();
+    const telAlvo = limparNumeroTelefone(telefone);
+    const conflito = (db.funcionarios||[]).find(x => x.id !== editandoFuncionarioId && x.conta && (
+      (emailAlvo && x.email && x.email.trim().toLowerCase() === emailAlvo) ||
+      (telAlvo && x.telefone && limparNumeroTelefone(x.telefone) === telAlvo)
+    ));
+    if (conflito) { erro.textContent = `Já existe um funcionário (${conflito.nome}) com este e-mail ou telefone de acesso.`; erro.classList.add('visivel'); return; }
+    if (!(fAtual && fAtual.senha) && !novaSenha) { erro.textContent = 'Defina uma senha de acesso para este funcionário.'; erro.classList.add('visivel'); return; }
+    if (novaSenha || confSenha) {
+      if (novaSenha.length < 4) { erro.textContent = 'A senha deve ter pelo menos 4 caracteres.'; erro.classList.add('visivel'); return; }
+      if (novaSenha !== confSenha) { erro.textContent = 'As senhas não coincidem.'; erro.classList.add('visivel'); return; }
+    }
+  }
+
+  const idFinal = editandoFuncionarioId || gerarId();
   const histSalarial = _histSalarialTemp.filter(h => h && h.data && h.valor).map(h => ({ data: h.data, valor: parseFloat(h.valor) || 0, motivo: h.motivo }));
 
   const dados = {
     nome, cargo,
     estado: document.getElementById('func-estado').value || 'ativo',
     bi: document.getElementById('func-bi').value.trim(),
-    telefone: document.getElementById('func-telefone').value.trim(),
-    email: document.getElementById('func-email').value.trim(),
+    telefone, email,
     admissao: document.getElementById('func-admissao').value,
     salario: parseFloat(document.getElementById('func-salario').value) || 0,
-    conta: document.getElementById('func-conta').value,
+    conta,
+    senha: novaSenha ? hashSenha(idFinal, novaSenha) : (fAtual ? fAtual.senha : undefined),
     habilitacoes: document.getElementById('func-habilitacoes').value,
     endereco: document.getElementById('func-endereco').value.trim(),
     notas: document.getElementById('func-notas').value.trim(),
@@ -558,7 +525,7 @@ function salvarFuncionario() {
   };
 
   if (editandoFuncionarioId) {
-    const f = db.funcionarios.find(x => x.id === editandoFuncionarioId);
+    const f = fAtual;
     dados.foto = _novaFotoFuncionarioBase64 ? _novaFotoFuncionarioBase64 : (_fotoFuncionarioRemovida ? null : (f.foto || null));
     dados.cert = _novaCertFuncionarioBase64 ? _novaCertFuncionarioBase64 : (_certFuncionarioRemovido ? null : (f.cert || null));
     dados.certNome = _novaCertFuncionarioBase64 ? (document.getElementById('func-cert-nome').textContent || '') : (_certFuncionarioRemovido ? '' : (f.certNome || ''));
@@ -567,7 +534,7 @@ function salvarFuncionario() {
     dados.foto = _novaFotoFuncionarioBase64 || null;
     dados.cert = _novaCertFuncionarioBase64 || null;
     dados.certNome = _novaCertFuncionarioBase64 ? (document.getElementById('func-cert-nome').textContent || '') : '';
-    db.funcionarios.push(Object.assign({ id: gerarId() }, dados));
+    db.funcionarios.push(Object.assign({ id: idFinal }, dados));
   }
 
   _resetarCampoFoto();
@@ -576,6 +543,11 @@ function salvarFuncionario() {
   salvarDB();
   fecharModal('modal-funcionario');
   renderFuncionarios();
+  if (funcionarioLogadoId === idFinal) {
+    const badge = document.getElementById('user-badge');
+    if (badge) badge.textContent = (PERFIS[utilizadorAtual]?.emoji || '👤') + ' ' + nome;
+    atualizarSaudacao();
+  }
 }
 
 function removerFuncionario(id) {
@@ -1011,7 +983,7 @@ function registarLog(acao) {
   db.logs.push({
     id: gerarId(),
     acao,
-    utilizador: utilizadorAtual,
+    utilizador: identidadeAtual(),
     data: new Date().toISOString()
   });
   // Manter só os últimos 2000 logs
@@ -1069,16 +1041,18 @@ let logoAlvirosil = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAA
 let filtroStock = '';
 let filtroDonoStock = '';
 
-// Verificar sessão ao carregar (feito aqui, depois de "db" já existir)
-(function() {
-  const sessao = sessionStorage.getItem(SESS_KEY);
-  if (sessao && PERFIS[sessao]) {
-    utilizadorAtual = sessao;
-    document.getElementById('tela-login').classList.add('oculto');
-    document.getElementById('user-badge').textContent = PERFIS[sessao].emoji + ' ' + nomeExibicao(sessao);
-    aplicarPermissoes();
-  }
-})();
+// Verificar sessão ao carregar — chamado depois de carregarDB(), pois depende de db.funcionarios
+function restaurarSessao() {
+  const sessaoId = sessionStorage.getItem(SESS_KEY);
+  if (!sessaoId) return;
+  const f = (db.funcionarios||[]).find(x => x.id === sessaoId && x.conta);
+  if (!f || (f.estado||'ativo') === 'inativo') { sessionStorage.removeItem(SESS_KEY); return; }
+  utilizadorAtual = f.conta;
+  funcionarioLogadoId = f.id;
+  document.getElementById('tela-login').classList.add('oculto');
+  document.getElementById('user-badge').textContent = (PERFIS[f.conta]?.emoji || '👤') + ' ' + f.nome;
+  aplicarPermissoes();
+}
 
 function salvarDB() {
   localStorage.setItem(DB_KEY, JSON.stringify(db));
@@ -1366,6 +1340,7 @@ function _migrarCreatedAtDosLogs() {
 function gerarId() { return Date.now().toString(36) + Math.random().toString(36).substr(2,5); }
 
 carregarDB();
+restaurarSessao();
 
 // Versão PRÉ-CARREGADA: Os 249 produtos são injectados automaticamente
 // no primeiro arranque, sem precisar importar XLSX nem usar o botão de importação.
@@ -1693,7 +1668,7 @@ function navegar(sec, btn) {
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('sec-' + sec).classList.add('active');
   if (btn) btn.classList.add('active');
-  if (sec === 'config') { renderConfigUsers(); renderConfigGeral(); renderAvisos(); renderBackupsNuvem(); }
+  if (sec === 'config') { renderConfigGeral(); renderAvisos(); renderBackupsNuvem(); }
   if (sec === 'funcionarios') { renderFuncionarios(); }
   if (sec === 'pessoas') { renderGestãoPessoas(); }
   renderAll();
@@ -1873,6 +1848,12 @@ function renderDashboard() {
   document.getElementById('stat-vencer').textContent = vencer30;
   document.getElementById('stat-critico').textContent = criticos;
   let alertas = [];
+  if (PERMISSOES[utilizadorAtual]?.funcionarios) {
+    const semCredenciais = (db.funcionarios||[]).filter(f => f.conta && (!(f.telefone||f.email) || !f.senha));
+    if (semCredenciais.length) {
+      alertas.push({tipo:'amarelo', icon:'🔐', msg:`${semCredenciais.length} funcionário(s) com conta de acesso ao sistema mas sem credenciais de login completas: <strong>${semCredenciais.map(f=>f.nome).join(', ')}</strong>. Completa o email/telefone e a senha em Funcionários → Editar.`});
+    }
+  }
   const hojeDt = new Date();
   (db.avisos || []).filter(a => !a.expira || new Date(a.expira) >= hojeDt).forEach(a => {
     alertas.push({tipo:a.tipo, icon:a.fixo?'📌':'📢', msg:a.msg});
@@ -2197,7 +2178,7 @@ function finalizarVenda() {
     dataVenda=candidata;
   }
 
-  const venda={id:gerarId(),num,data:dataVenda.toISOString(),dataRegisto:agora.toISOString(),cliente,clienteNif,pagamento,total,itens:carrinho.map(c=>({...c})),operador:utilizadorAtual||'—'};
+  const venda={id:gerarId(),num,data:dataVenda.toISOString(),dataRegisto:agora.toISOString(),cliente,clienteNif,pagamento,total,itens:carrinho.map(c=>({...c})),operador:identidadeAtual()||'—'};
   carrinho.forEach(c=>{const prod=db.produtos.find(p=>p.id===c.id);if(prod){prod.qty-=c.qty;registarMovimentoStock(prod.id,-c.qty,'venda',venda.id);}});
   db.vendas.push(venda);
   if (pagamento === 'Crédito') {
@@ -2256,7 +2237,7 @@ function guardarEdicaoVenda() {
   venda.cliente = document.getElementById('editar-venda-cliente').value;
   venda.clienteNif = document.getElementById('editar-venda-nif').value.trim();
   venda.pagamento = novoPagamento;
-  venda.editadoPor = utilizadorAtual;
+  venda.editadoPor = identidadeAtual();
   venda.editadoEm = new Date().toISOString();
 
   // Sincroniza o registo de fiado (Contas a Receber) com a nova forma de pagamento
@@ -2291,7 +2272,7 @@ function cancelarVenda(id) {
     if (prod) { prod.qty += item.qty; registarMovimentoStock(prod.id, item.qty, 'cancelamento_venda', venda.id); }
   });
   venda.cancelada = true;
-  venda.canceladoPor = utilizadorAtual;
+  venda.canceladoPor = identidadeAtual();
   venda.canceladoEm = new Date().toISOString();
 
   registarLog('Cancelou a venda #' + venda.num + ' (Kz ' + formatarValor(venda.total) + ') — stock restituído');
@@ -2411,7 +2392,7 @@ function imprimirRecibo() {
 
 function confirmarAssinatura() {
   const senha = document.getElementById('assinatura-senha').value;
-  const senhaCorreta = PERFIS[utilizadorAtual]?.senhaDefault;
+  const f = funcionarioLogado();
   const erro = document.getElementById('assinatura-erro');
   
   erro.classList.remove('visivel');
@@ -2422,7 +2403,8 @@ function confirmarAssinatura() {
     return; 
   }
   
-  if (senha !== senhaCorreta) { 
+  const senhaValida = f && f.senha && f.senha === hashSenha(f.id, senha);
+  if (!senhaValida) { 
     erro.textContent = '❌ Senha incorreta.'; 
     erro.classList.add('visivel'); 
     return; 
@@ -2430,7 +2412,7 @@ function confirmarAssinatura() {
   
   // Senha correta — assinar permanentemente e gerar PDF
   if (vendaRecibo) {
-    vendaRecibo.assinado_por = utilizadorAtual;
+    vendaRecibo.assinado_por = identidadeAtual();
     vendaRecibo.assinado_em = new Date().toISOString();
     salvarDB();
     registarLog(`Assinou a fatura da venda #${vendaRecibo.num}`);
@@ -2736,7 +2718,7 @@ function fecharContasAte() {
   const anteriorTxt = db.config.fechoAte ? new Date(db.config.fechoAte+'T00:00:00').toLocaleDateString('pt-AO') : 'nenhum';
   if (!confirm(`Confirmas o fecho das contas até ${new Date(valor+'T00:00:00').toLocaleDateString('pt-AO')}?\nDepois de fechado, as vendas até essa data deixam de poder ser editadas, canceladas, ou receber novos lançamentos.`)) return;
   db.config.fechoAte = valor;
-  db.config.fechoPor = utilizadorAtual;
+  db.config.fechoPor = identidadeAtual();
   db.config.fechoEm = new Date().toISOString();
   delete db.config.reabertoManual;
   salvarDB();
@@ -2773,7 +2755,7 @@ function reabrirContas() {
     if (!confirm(`Vais reabrir as contas a partir de ${novaTxt} (inclusive).\nAs vendas com data igual ou posterior a ${novaTxt} passam a poder ser editadas, canceladas, ou receber novos lançamentos. O histórico anterior a ${novaTxt} continua fechado.\n\nConfirmas?`)) return;
     registarLog(`Reabriu as contas a partir de ${novaTxt} (fecho anterior era até ${fechoAtualTxt})`);
     if (novoFecho < new Date(2000,0,1)) { delete db.config.fechoAte; delete db.config.fechoPor; delete db.config.fechoEm; }
-    else { db.config.fechoAte = novoFechoStr; db.config.fechoPor = utilizadorAtual; db.config.fechoEm = new Date().toISOString(); }
+    else { db.config.fechoAte = novoFechoStr; db.config.fechoPor = identidadeAtual(); db.config.fechoEm = new Date().toISOString(); }
     db.config.reabertoManual = true;
   }
   salvarDB();
@@ -4137,7 +4119,7 @@ function salvarBalanco() {
     const vendaReconstituida = {
       id: gerarId(), num: numVenda, data: new Date().toISOString(), dataRegisto: new Date().toISOString(),
       cliente: 'Vendas não registadas (balanço)', clienteNif: '', pagamento: 'Dinheiro', total: totalReconstituido,
-      itens: itensVendaReconstituida, operador: utilizadorAtual || '—',
+      itens: itensVendaReconstituida, operador: identidadeAtual() || '—',
       reconstituidaDoBalanco: balancoId
     };
     db.vendas.push(vendaReconstituida);
@@ -4152,7 +4134,7 @@ function salvarBalanco() {
     itens, totalProdutos: itens.length, totalComFalta: comFalta.length, totalComSobra: comSobra.length,
     totalCertos: certos.length, valorFalta, valorSobra, valorLiquido: valorSobra - valorFalta,
     vendaReconstituidaId, valorVendaReconstituida: itensVendaReconstituida.reduce((s,it) => s + it.preco * it.qty, 0),
-    criadoPor: utilizadorAtual || '—'
+    criadoPor: identidadeAtual() || '—'
   };
 
   db.balancos = db.balancos || [];
@@ -4360,7 +4342,7 @@ function adicionarDespesa() {
   db.despesas = db.despesas || [];
   db.despesas.push({
     id: gerarId(), data, categoria, descricao: descricao || '(sem descrição)',
-    valor, criadoPor: utilizadorAtual || '—', updatedAt: Date.now()
+    valor, criadoPor: identidadeAtual() || '—', updatedAt: Date.now()
   });
 
   registarLog(`Registou despesa: ${categoria} — Kz ${formatarValor(valor)} (${data})`);
@@ -4450,7 +4432,7 @@ function adicionarSobraCaixa() {
   db.sobrasCaixa = db.sobrasCaixa || [];
   db.sobrasCaixa.push({
     id: gerarId(), data, descricao: descricao || '(sem descrição)',
-    valor, criadoPor: utilizadorAtual || '—', updatedAt: Date.now()
+    valor, criadoPor: identidadeAtual() || '—', updatedAt: Date.now()
   });
 
   registarLog(`Registou sobra de caixa: Kz ${formatarValor(valor)} (${data})`);
@@ -4706,7 +4688,7 @@ function registarPagamentoFiado() {
   if (valor > saldo + 0.01) { alert(`O valor indicado é maior que o saldo em dívida (Kz ${formatarValor(saldo)}).`); return; }
 
   fiado.pagamentos = fiado.pagamentos || [];
-  fiado.pagamentos.push({ id: gerarId(), data, valor, registadoPor: utilizadorAtual || '—' });
+  fiado.pagamentos.push({ id: gerarId(), data, valor, registadoPor: identidadeAtual() || '—' });
   fiado.updatedAt = Date.now();
 
   registarLog(`Registou pagamento de fiado de Kz ${formatarValor(valor)} na venda #${venda.num} (${venda.cliente || 'Consumidor Final'})`);
@@ -4818,7 +4800,7 @@ function adicionarContaPagar() {
   db.contasPagar.push({
     id: gerarId(), fornecedor, descricao: descricao || '(sem descrição)', valorTotal,
     dataEmissao, dataVencimento: dataVencimento || '', pagamentos: [],
-    criadoPor: utilizadorAtual || '—', updatedAt: Date.now()
+    criadoPor: identidadeAtual() || '—', updatedAt: Date.now()
   });
 
   registarLog(`Registou conta a pagar: ${fornecedor} — Kz ${formatarValor(valorTotal)}`);
@@ -4894,7 +4876,7 @@ function registarPagamentoFornecedor() {
   if (valor > saldo + 0.01) { alert(`O valor indicado é maior que o saldo em dívida (Kz ${formatarValor(saldo)}).`); return; }
 
   conta.pagamentos = conta.pagamentos || [];
-  conta.pagamentos.push({ id: gerarId(), data, valor, registadoPor: utilizadorAtual || '—' });
+  conta.pagamentos.push({ id: gerarId(), data, valor, registadoPor: identidadeAtual() || '—' });
   conta.updatedAt = Date.now();
 
   registarLog(`Registou pagamento a fornecedor de Kz ${formatarValor(valor)} (${conta.fornecedor})`);
@@ -5322,7 +5304,7 @@ function salvarProduto() {
       nomeProduto: produtoOriginal ? produtoOriginal.nome : data.nome,
       dadosAntigos: produtoOriginal ? {...produtoOriginal} : null,
       dadosNovos: data,
-      solicitadoPor: utilizadorAtual,
+      solicitadoPor: identidadeAtual(),
       dataSolicitacao: new Date().toISOString(),
       status: 'pendente'
     };
@@ -5350,7 +5332,7 @@ function removerProduto(id) {
     db.alteracoes.push({
       id: gerarId(), tipo: 'remover', produtoId: id, nomeProduto: p.nome,
       dadosAntigos: {...p}, dadosNovos: null,
-      solicitadoPor: utilizadorAtual, dataSolicitacao: new Date().toISOString(), status: 'pendente'
+      solicitadoPor: identidadeAtual(), dataSolicitacao: new Date().toISOString(), status: 'pendente'
     });
     registarLog('Solicitou remoção do produto "' + p.nome + '" (pendente de aprovação)');
     salvarDB();
@@ -5400,7 +5382,7 @@ function submeterPedido() {
     precoC: precoC,
     precoV: precoV,
     justif: justif,
-    solicitadoPor: utilizadorAtual,
+    solicitadoPor: identidadeAtual(),
     dataSolicitacao: new Date().toISOString(),
     status: 'pendente' // pendente, aprovado, rejeitado
   };
@@ -5657,6 +5639,68 @@ function renderConfigGeral() {
   const taxas = db.config.comissaoRates || { farmaceutico: 0.02, caixa: 0.01 };
   document.getElementById('cfg-com-farmaceutico').value = ((taxas.farmaceutico ?? 0.02) * 100);
   document.getElementById('cfg-com-caixa').value = ((taxas.caixa ?? 0.01) * 100);
+
+  const statusEl = document.getElementById('codigo-mestre-status');
+  if (statusEl) {
+    statusEl.textContent = db.config.codigoMestreHash ? '✅ Código mestre definido.' : '⚠️ Ainda não definiste nenhum código mestre — se ficares sem acesso, ninguém consegue repor a tua senha.';
+    statusEl.style.color = db.config.codigoMestreHash ? 'var(--verde)' : 'var(--vermelho)';
+  }
+}
+
+// ============ CÓDIGO MESTRE DE RECUPERAÇÃO DE SENHA ============
+function hashCodigoMestre(codigo) { return sha256Hex('farmagest::codigoMestre::' + codigo); }
+
+function salvarCodigoMestre() {
+  const novo = document.getElementById('cfg-codigo-mestre').value;
+  const conf = document.getElementById('cfg-codigo-mestre-confirmar').value;
+  const erro = document.getElementById('codigo-mestre-erro');
+  erro.classList.remove('visivel');
+  if (!novo) { erro.textContent = 'Introduz um código mestre.'; erro.classList.add('visivel'); return; }
+  if (novo.length < 6) { erro.textContent = 'O código mestre deve ter pelo menos 6 caracteres.'; erro.classList.add('visivel'); return; }
+  if (novo !== conf) { erro.textContent = 'Os códigos não coincidem.'; erro.classList.add('visivel'); return; }
+  db.config.codigoMestreHash = hashCodigoMestre(novo);
+  salvarDB();
+  document.getElementById('cfg-codigo-mestre').value = '';
+  document.getElementById('cfg-codigo-mestre-confirmar').value = '';
+  renderConfigGeral();
+  alert('🔑 Código mestre guardado. Anota-o num sítio seguro fora da app — não há forma de o ver de novo aqui.');
+}
+
+function abrirModalRecuperarSenha() {
+  document.getElementById('recuperar-identificador').value = '';
+  document.getElementById('recuperar-codigo').value = '';
+  document.getElementById('recuperar-nova-senha').value = '';
+  document.getElementById('recuperar-confirmar-senha').value = '';
+  document.getElementById('recuperar-erro').classList.remove('visivel');
+  document.getElementById('modal-recuperar-senha').classList.add('open');
+}
+
+function confirmarRecuperacaoSenha() {
+  const idInput = document.getElementById('recuperar-identificador').value.trim();
+  const codigo = document.getElementById('recuperar-codigo').value;
+  const novaSenha = document.getElementById('recuperar-nova-senha').value;
+  const confSenha = document.getElementById('recuperar-confirmar-senha').value;
+  const erro = document.getElementById('recuperar-erro');
+  erro.classList.remove('visivel');
+
+  if (!db.config.codigoMestreHash) { erro.textContent = 'Ainda não foi definido nenhum código mestre nesta farmácia. Contacta o Gerente.'; erro.classList.add('visivel'); return; }
+  if (!idInput || !codigo) { erro.textContent = 'Preenche o email/telefone e o código mestre.'; erro.classList.add('visivel'); return; }
+  if (hashCodigoMestre(codigo) !== db.config.codigoMestreHash) { erro.textContent = 'Código mestre incorrecto.'; erro.classList.add('visivel'); return; }
+  if (!novaSenha || novaSenha.length < 4) { erro.textContent = 'A nova senha deve ter pelo menos 4 caracteres.'; erro.classList.add('visivel'); return; }
+  if (novaSenha !== confSenha) { erro.textContent = 'As senhas não coincidem.'; erro.classList.add('visivel'); return; }
+
+  const alvoEmail = idInput.toLowerCase();
+  const alvoTel = limparNumeroTelefone(idInput);
+  const f = (db.funcionarios||[]).find(x => x.conta && (
+    (x.email && x.email.trim().toLowerCase() === alvoEmail) ||
+    (alvoTel && x.telefone && limparNumeroTelefone(x.telefone) === alvoTel)
+  ));
+  if (!f) { erro.textContent = 'Não foi encontrado nenhum funcionário com esse email/telefone.'; erro.classList.add('visivel'); return; }
+
+  f.senha = hashSenha(f.id, novaSenha);
+  salvarDB();
+  fecharModal('modal-recuperar-senha');
+  alert(`✅ Senha de ${f.nome} reposta com sucesso. Já podes entrar com a nova senha.`);
 }
 
 // ============ ALERTAS DE STOCK CRÍTICO (Notificações + WhatsApp) ============
@@ -6096,7 +6140,7 @@ function salvarAvaliacao() {
     forcas: document.getElementById('aval-forcas')?.value.trim() || '',
     melhorias: document.getElementById('aval-melhorias')?.value.trim() || '',
     recomendacoes: document.getElementById('aval-recomendacoes')?.value.trim() || '',
-    avaliador: utilizadorAtual,
+    avaliador: identidadeAtual(),
     criado: new Date().toISOString()
   });
   

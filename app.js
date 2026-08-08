@@ -1187,20 +1187,23 @@ function mesclarDb(dbBase, dbPrioritario) {
   // a flag de importação do XLSX nunca pode "regredir": se qualquer um dos dois
   // lados já marcou como importado, o resultado fica marcado como importado.
   const xlsxImportado = (dbBase.config && dbBase.config.xlsxImportadoV2) || (dbPrioritario.config && dbPrioritario.config.xlsxImportadoV2);
-  if (xlsxImportado) {
-    configMesclado.xlsxImportadoV2 = true;
-    // LIMPEZA RETROATIVA: quando a importação XLSX já rodou, os produtos com IDs
-    // determinísticos (xlsx_N) são os canónicos. Produtos com IDs aleatórios que
-    // tenham o mesmo nome que um xlsx_N são duplicados gerados por rodadas anteriores
-    // em dispositivos sem flag — eliminá-los do merge evita o empilhamento de 747+.
+  if (xlsxImportado) configMesclado.xlsxImportadoV2 = true;
+  // LIMPEZA RETROATIVA (só corre UMA VEZ): quando a importação XLSX rodou, os produtos com IDs
+  // determinísticos (xlsx_N) são os canónicos. Produtos com IDs aleatórios que tinham o mesmo
+  // nome eram duplicados de rondas de importação antigas em dispositivos sem a flag.
+  // IMPORTANTE: isto não pode correr em TODAS as fusões futuras, senão qualquer produto novo
+  // criado mais tarde com o mesmo nome de um produto importado seria apagado silenciosamente.
+  const jaLimpou = (dbBase.config && dbBase.config._limpezaXlsxDuplicadosFeita) || (dbPrioritario.config && dbPrioritario.config._limpezaXlsxDuplicadosFeita);
+  if (xlsxImportado && !jaLimpou) {
     const nomesXlsx = new Set(produtosMesclados.filter(p => p.id && p.id.startsWith('xlsx_')).map(p => p.nome));
     if (nomesXlsx.size > 0) {
       produtosMesclados = produtosMesclados.filter(p =>
         (p.id && p.id.startsWith('xlsx_')) || // produto da importação: sempre mantém
         !nomesXlsx.has(p.nome)                // produto manual sem nome duplicado: mantém
-        // produto aleatório com nome igual a um xlsx_N: descarta (é duplicata)
+        // produto aleatório com nome igual a um xlsx_N: descarta (é duplicata antiga)
       );
     }
+    configMesclado._limpezaXlsxDuplicadosFeita = true;
   }
   return {
     produtos: produtosMesclados,

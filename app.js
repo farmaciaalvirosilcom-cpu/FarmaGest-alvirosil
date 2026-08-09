@@ -1273,49 +1273,6 @@ async function sincronizarComNuvem() {
 }
 window.sincronizarComNuvem = sincronizarComNuvem;
 
-// Limpa TODOS os dados da Supabase e substitui pelos dados actuais deste dispositivo.
-// Usado quando a nuvem tem dados antigos/incorrectos e queremos começar do zero.
-async function limparNuvemERessincronizar() {
-  if (!window.cloudCarregar) { alert('⚠️ Supabase não configurado.'); return; }
-  const confirmar = confirm('⚠️ Isto vai APAGAR todos os dados da nuvem e substituir pelos dados actuais deste dispositivo (incluindo os 249 produtos).\n\nTem a certeza?');
-  if (!confirmar) return;
-  const status = document.getElementById('sync-status');
-  if (status) status.textContent = '🔄 A limpar a nuvem...';
-  atualizarBadgeNuvem('🔄 A limpar...');
-  try {
-    // Garante que os 249 produtos estão carregados localmente
-    const temXlsx = db.produtos.some(p => p.id && p.id.startsWith('xlsx_'));
-    if (!temXlsx) {
-      db.produtos = db.produtos.filter(p => p.id && p.id.startsWith('xlsx_'));
-      if (!db.config) db.config = {};
-      db.config.xlsxImportadoV2 = false;
-      localStorage.removeItem('xlsx_importado_v2');
-      importarProdutosXLSX();
-    }
-    // Remove produtos que não são xlsx_ do db local também
-    db.produtos = db.produtos.filter(p => p.id && p.id.startsWith('xlsx_'));
-    db.produtosRemovidos = []; // limpa tombstones antigos
-    salvarDB();
-
-    // Envia os dados limpos directamente para a Supabase (sem merge com o que estava lá)
-    const { error } = await supabaseClient
-      .from('farmacias')
-      .upsert({ id: ID_FARMACIA, dados: JSON.parse(JSON.stringify(db)), atualizado_em: new Date().toISOString() });
-    if (error) throw error;
-
-    atualizarBadgeNuvem('☁️ Sincronizado');
-    if (status) status.textContent = '✅ Nuvem limpa e ressincronizada com ' + db.produtos.length + ' produtos.';
-    renderAll();
-    alert('✅ Feito! A nuvem foi limpa e ressincronizada com ' + db.produtos.length + ' produtos.');
-  } catch (e) {
-    const msg = e && e.message ? e.message : JSON.stringify(e);
-    atualizarBadgeNuvem('❌ Erro');
-    if (status) status.textContent = '❌ Erro: ' + msg;
-    alert('❌ Erro ao limpar a nuvem: ' + msg);
-  }
-}
-window.limparNuvemERessincronizar = limparNuvemERessincronizar;
-
 // Fica "à escuta" de mudanças feitas por OUTROS telemóveis/utilizadores, em tempo real.
 function escutarMudancasDaNuvem() {
   if (!window.cloudEscutar) return;

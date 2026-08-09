@@ -1733,16 +1733,8 @@ function gerarBannerAlerta() {
   const hoje = new Date();
   const alertas = [];
   
-  // Verificar stock crítico
-  const stockCritico = db.produtos.filter(p => p.qty <= p.min);
-  if (stockCritico.length > 0) {
-    alertas.push({
-      titulo: `⚠️ ${stockCritico.length} produto(s) com stock baixo!`,
-      texto: `${stockCritico[0].nome} precisa reposição urgente`,
-      cor: 'banner-vermelho',
-      icon: '⚠️'
-    });
-  }
+  // Nota: o stock crítico já tem o seu próprio cartão dedicado no topo do Painel
+  // (com lista de produtos e botão de alerta WhatsApp), por isso não repetimos aqui.
   
   // Verificar validades próximas
   const aVencer = db.produtos.filter(p => {
@@ -5594,8 +5586,25 @@ function rejeitarAlteracao(alteracaoId) {
 // IMPORT/EXPORT
 function exportarDados(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='farmagest_alvirosil_'+new Date().toISOString().split('T')[0]+'.json';a.click();}
 function importarDados(){document.getElementById('import-file').click();}
-function processarImport(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=(ev)=>{try{const dados=JSON.parse(ev.target.result);if(!dados.produtos){alert('Ficheiro inválido!');return;}if(!confirm('Substituir todos os dados actuais?'))return;db=dados;salvarDB();renderAll();alert('Dados importados com sucesso!');}catch(err){alert('Erro ao ler o ficheiro!');}};reader.readAsText(file);e.target.value='';}
-function resetarDados(){if(!confirm('⚠️ Apagar TODOS os dados?'))return;if(!confirm('Tens a certeza?'))return;db={produtos:[],vendas:[],config:db.config};salvarDB();renderAll();}
+function processarImport(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=(ev)=>{try{const dados=JSON.parse(ev.target.result);if(!dados.produtos){alert('Ficheiro inválido!');return;}if(!confirm('⚠️ Isto vai substituir TODOS os dados atuais pelo conteúdo do ficheiro, em todos os dispositivos. Continuar?'))return;const aplicar=()=>{db=dados;salvarDB();renderAll();alert('Dados importados com sucesso!');};if(window.fazerBackupNuvem){window.fazerBackupNuvem(true).then(()=>aplicar()).catch(()=>{if(confirm('⚠️ Não foi possível criar uma cópia de segurança antes de importar. Continuar mesmo assim?'))aplicar();});}else{aplicar();}}catch(err){alert('Erro ao ler o ficheiro!');}};reader.readAsText(file);e.target.value='';}
+function resetarDados(){
+  if(!confirm('⚠️ Isto vai APAGAR TUDO — produtos, vendas, despesas, balanços, fornecedores, funcionários, tudo — em todos os dispositivos (a nuvem também é apagada).\n\nEsta ação NÃO tem volta atrás.\n\nContinuar?'))return;
+  const digitado = prompt('Para confirmar, escreve exatamente: APAGAR TUDO');
+  if (digitado !== 'APAGAR TUDO') { alert('Texto não corresponde. Nada foi apagado.'); return; }
+  const prosseguir = () => {
+    db={produtos:[],vendas:[],movimentosStock:[],config:db.config};
+    salvarDB();
+    renderAll();
+    alert('Dados apagados.');
+  };
+  if (window.fazerBackupNuvem) {
+    window.fazerBackupNuvem(true).then(() => prosseguir()).catch(() => {
+      if (confirm('⚠️ Não foi possível criar uma cópia de segurança antes de apagar (sem internet?). Continuar mesmo assim, SEM rede de segurança?')) prosseguir();
+    });
+  } else {
+    prosseguir();
+  }
+}
 
 function formatarValor(v){return(v||0).toLocaleString('pt-AO',{minimumFractionDigits:2,maximumFractionDigits:2});}
 document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',(e)=>{if(e.target===m)m.classList.remove('open');});});

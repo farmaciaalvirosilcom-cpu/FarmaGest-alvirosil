@@ -1155,22 +1155,43 @@ function mesclarListas(listaBase, listaPrioritaria) {
 // cada alteração de stock fica registada como um movimento (delta) com ID próprio.
 // Movimentos nunca colidem na fusão (são só adicionados à lista), e o stock final de cada
 // produto é sempre recalculado como: qtyBase (stock ao criar o produto) + soma dos deltas.
-function registarMovimentoStock(produtoId, delta, tipo, ref) {
+function registarMovimentoStock(produtoId, delta, tipo, ref, valorApos) {
   if (!delta) return;
   db.movimentosStock = db.movimentosStock || [];
-  db.movimentosStock.push({ id: gerarId(), produtoId, delta, tipo, ref: ref || null, data: new Date().toISOString() });
+  const mov = { id: gerarId(), produtoId, delta, tipo, ref: ref || null, data: new Date().toISOString() };
+  // valorApos: quando presente, marca este movimento como uma CORREÇÃO ABSOLUTA (edição manual
+  // ou balanço) — o valor real e confirmado do stock depois deste movimento. Serve de "âncora"
+  // para o recálculo abaixo, para que desvios acumulados antes desta correção nunca voltem a aparecer.
+  if (valorApos != null) mov.valorApos = valorApos;
+  db.movimentosStock.push(mov);
 }
 
 function recalcularStockDosProdutos(alvo) {
   const d = alvo || db;
-  const somaPorProduto = {};
+  const movsPorProduto = {};
   (d.movimentosStock || []).forEach(m => {
     if (!m || !m.produtoId) return;
-    somaPorProduto[m.produtoId] = (somaPorProduto[m.produtoId] || 0) + (m.delta || 0);
+    (movsPorProduto[m.produtoId] = movsPorProduto[m.produtoId] || []).push(m);
   });
   (d.produtos || []).forEach(p => {
-    const base = (p.qtyBase != null ? p.qtyBase : (p.qty || 0));
-    p.qty = base + (somaPorProduto[p.id] || 0);
+    const movs = (movsPorProduto[p.id] || []).slice().sort((a, b) => new Date(a.data) - new Date(b.data));
+    // Ponto de partida: stock à criação do produto (pode ter desvios de sincronizações antigas).
+    let base = (p.qtyBase != null ? p.qtyBase : (p.qty || 0));
+    let baseTime = -Infinity;
+    let soma = 0;
+    movs.forEach(m => {
+      const t = new Date(m.data).getTime();
+      if (m.valorApos != null) {
+        // Correção absoluta: reinicia a base aqui. Tudo o que aconteceu ANTES fica ignorado
+        // (mesmo que tenha desvios) — a correção manual do gerente é sempre a fonte da verdade.
+        base = m.valorApos;
+        baseTime = t;
+        soma = 0;
+      } else if (t >= baseTime) {
+        soma += (m.delta || 0);
+      }
+    });
+    p.qty = base + soma;
   });
 }
 
@@ -4116,10 +4137,10 @@ function salvarBalanco() {
     prod.qty = i.fisico;
     if (i.diferenca < 0) {
       // Falta = venda não registada
-      itensVendaReconstituida.push({ id: prod.id, nome: prod.nome, preco: prod.precoV || 0, custoUnit: prod.precoC || 0, qty: Math.abs(i.diferenca) });
+      itensVendaReconstituida.push({ id: prod.id, nome: prod.nome, preco: prod.precoV || 0, custoUnit: prod.precoC || 0, qty: Math.abs(i.diferenca), fisico: i.fisico });
     } else {
       // Sobra = ajuste de stock encontrado (não é venda)
-      registarMovimentoStock(prod.id, delta, 'balanco', balancoId);
+      registarMovimentoStock(prod.id, delta, 'balanco', balancoId, i.fisico);
     }
   });
 
@@ -4135,7 +4156,7 @@ function salvarBalanco() {
     };
     db.vendas.push(vendaReconstituida);
     vendaReconstituidaId = vendaReconstituida.id;
-    itensVendaReconstituida.forEach(it => registarMovimentoStock(it.id, -it.qty, 'venda_balanco', vendaReconstituidaId));
+    itensVendaReconstituida.forEach(it => registarMovimentoStock(it.id, -it.qty, 'venda_balanco', vendaReconstituidaId, it.fisico));
   }
 
   const balanco = {
@@ -5330,7 +5351,7 @@ function salvarProduto() {
   }
 
   const agora = new Date().toISOString();
-  if(editandoId){const idx=db.produtos.findIndex(p=>p.id===editandoId);const antesQty=db.produtos[idx].qty||0;db.produtos[idx]={...db.produtos[idx],...data,updatedAt:agora};if(data.qty!=null&&data.qty!==antesQty){registarMovimentoStock(editandoId,data.qty-antesQty,'ajuste_manual',null);}registarLog('Editou o produto "'+data.nome+'" no stock');}
+  if(editandoId){const idx=db.produtos.findIndex(p=>p.id===editandoId);const antesQty=db.produtos[idx].qty||0;db.produtos[idx]={...db.produtos[idx],...data,updatedAt:agora};if(data.qty!=null&&data.qty!==antesQty){registarMovimentoStock(editandoId,data.qty-antesQty,'ajuste_manual',null,data.qty);}registarLog('Editou o produto "'+data.nome+'" no stock');}
   else{const novoId=gerarId();db.produtos.push({id:novoId,...data,createdAt:agora,qtyBase:data.qty||0,qtyCriacao:data.qty||0,updatedAt:agora});registarLog('Criou o produto "'+data.nome+'" no stock ('+(data.qty||0)+' un.)');}
   salvarDB(); fecharModal('modal-produto'); renderAll();
 }
@@ -5550,7 +5571,7 @@ function aprovarAlteracao(alteracaoId) {
     if (idx >= 0) {
       const antesQty = db.produtos[idx].qty || 0;
       db.produtos[idx] = {...db.produtos[idx], ...a.dadosNovos, updatedAt: agora};
-      if (a.dadosNovos.qty != null && a.dadosNovos.qty !== antesQty) registarMovimentoStock(a.produtoId, a.dadosNovos.qty - antesQty, 'ajuste_manual', null);
+      if (a.dadosNovos.qty != null && a.dadosNovos.qty !== antesQty) registarMovimentoStock(a.produtoId, a.dadosNovos.qty - antesQty, 'ajuste_manual', null, a.dadosNovos.qty);
     }
   } else if (a.tipo === 'remover') {
     db.produtos = db.produtos.filter(p => p.id !== a.produtoId);
